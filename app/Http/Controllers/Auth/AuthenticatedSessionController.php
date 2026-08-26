@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\LoginRequest;
+use App\Models\Delivery;
+use App\Models\Rider;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -16,7 +18,13 @@ class AuthenticatedSessionController extends Controller
      */
     public function create(): View
     {
-        return view('auth.login');
+        return view('auth.login', [
+            'stats' => [
+                'activeRiders' => Rider::where('status', '!=', 'inactive')->count(),
+                'deliveries' => Delivery::whereNull('archived_at')->count(),
+                'completed' => Delivery::where('status', 'delivered')->count(),
+            ],
+        ]);
     }
 
     /**
@@ -27,6 +35,11 @@ class AuthenticatedSessionController extends Controller
         $request->authenticate();
 
         $request->session()->regenerate();
+
+        // Logistics sessions are browser-session only: drop any stale
+        // "remember me" cookie from previous persistent logins so closing
+        // the browser always requires a fresh login.
+        cookie()->queue(cookie()->forget(Auth::guard('web')->getRecallerName()));
 
         return redirect()->intended(route('dashboard', absolute: false));
     }

@@ -1,64 +1,77 @@
-<x-guest-layout>
-    <div x-data="{ submitting: false, email: '' }">
-        <div class="text-center mb-6">
-            <h2 class="text-xl font-bold text-gray-900">Forgot your password?</h2>
-            <p class="mt-1 text-sm text-gray-500">No problem. Enter your email and we'll send you a reset link.</p>
+<!DOCTYPE html>
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <title>Password Recovery — Logistics</title>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        teal: {
+                            DEFAULT: '#16697A',
+                            dark: '#0E4A57',
+                            light: '#EAF4F3',
+                        },
+                        secondary: '#F0A202',
+                    },
+                    fontFamily: {
+                        sans: ['Segoe UI', 'system-ui', '-apple-system', 'sans-serif'],
+                    },
+                },
+            },
+        };
+    </script>
+</head>
+<body class="font-sans antialiased bg-[#F7F6F2] text-gray-900">
+<div class="min-h-screen flex items-center justify-center p-6">
+    <div class="w-full max-w-md">
+        <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-8 sm:p-10 text-center">
+            {{-- Brand --}}
+            <div class="flex flex-col items-center">
+                <img src="{{ asset('images/logo.png') }}" alt="Logo" class="h-14 w-14 rounded-2xl object-cover ring-1 ring-gray-100">
+                <p class="mt-3 text-lg font-extrabold tracking-tight text-gray-900">Logistics</p>
+                <p class="text-[11px] font-semibold tracking-[0.3em] uppercase text-gray-400 mt-0.5">Logistics Center</p>
+            </div>
+
+            {{-- Icon --}}
+            <div class="mt-8 mx-auto w-14 h-14 rounded-2xl bg-teal-light text-teal-dark flex items-center justify-center">
+                <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                </svg>
+            </div>
+
+            {{-- Heading --}}
+            <h1 class="mt-5 text-2xl sm:text-3xl font-extrabold tracking-tight text-gray-900">Password Recovery</h1>
+
+            {{-- Message --}}
+            <p class="mt-3 text-sm sm:text-base text-gray-500 leading-relaxed">
+                For security reasons, Logistics passwords cannot be reset through this page.
+            </p>
+
+            <div class="mt-5 bg-teal-light/60 border border-teal/20 rounded-xl px-5 py-4 text-left">
+                <p class="text-sm text-gray-700 leading-relaxed">
+                    <span class="font-semibold text-teal-dark">Please contact the system administrator</span>
+                    to have your password reset. Once the administrator has reset it, sign in with the new password.
+                </p>
+            </div>
+
+            {{-- Back to Login --}}
+            <a href="{{ route('login') }}"
+               class="mt-7 inline-flex items-center justify-center gap-2 w-full bg-teal text-white rounded-xl py-3.5 font-semibold hover:bg-teal-dark transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-teal focus:ring-offset-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                </svg>
+                Back to Login
+            </a>
         </div>
 
-        <x-auth-session-status class="mb-4" :status="session('status')" />
-
-        @if ($errors->has('email'))
-            <div id="email-error" role="alert" aria-live="assertive"
-                 class="mb-4 flex items-start gap-2.5 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl text-sm">
-                <svg class="h-4 w-4 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                <span>{{ $errors->first('email') }}</span>
-            </div>
-        @endif
-
-        <form method="POST" action="{{ route('password.email') }}"
-              x-on:submit="submitting = true"
-              novalidate>
-            @csrf
-
-            <div>
-                <label for="email" class="block font-medium text-sm text-gray-700">Email</label>
-                <input id="email"
-                       type="email"
-                       name="email"
-                       x-model="email"
-                       class="block mt-1 w-full border-gray-300 focus:border-teal focus:ring-teal rounded-xl shadow-sm @error('email') border-red-400 focus:border-red-500 focus:ring-red-500 @enderror"
-                       value="{{ old('email') }}"
-                       required
-                       autofocus
-                       autocomplete="username"
-                       placeholder="you@company.com"
-                       aria-describedby="email-error"
-                       aria-invalid="@error('email') true @enderror" />
-            </div>
-
-            <div class="mt-6">
-                <button type="submit"
-                        :disabled="submitting"
-                        :class="submitting ? 'opacity-70 cursor-not-allowed' : 'hover:bg-teal-dark'"
-                        class="relative w-full bg-teal text-white rounded-xl py-3 font-semibold transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-teal focus:ring-offset-2 disabled:opacity-70">
-                    <span class="inline-flex items-center justify-center gap-2">
-                        <svg x-show="submitting" x-cloak class="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                            <path class="opacity-90" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
-                        </svg>
-                        <span x-text="submitting ? 'Sending...' : 'Email Password Reset Link'">Email Password Reset Link</span>
-                    </span>
-                </button>
-            </div>
-        </form>
-
-        <p class="mt-6 text-center text-sm text-gray-500">
-            <a href="{{ route('login') }}"
-               class="font-semibold text-teal-dark hover:text-teal underline underline-offset-2 rounded focus:outline-none focus:ring-2 focus:ring-teal focus:ring-offset-1">
-                Back to Sign In
-            </a>
-        </p>
+        <p class="mt-6 text-center text-xs sm:text-sm text-gray-400">Logistics &middot; v1.0 &middot; Logistics</p>
     </div>
-</x-guest-layout>
+</div>
+</body>
+</html>

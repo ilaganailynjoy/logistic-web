@@ -37,7 +37,7 @@ class LoginRequest extends FormRequest
         return [
             'email.required' => 'Please enter your email address.',
             'email.email' => 'Please enter a valid email address.',
-            'password.required' => 'Password is required.',
+            'password.required' => 'Please enter your password.',
         ];
     }
 
@@ -50,7 +50,9 @@ class LoginRequest extends FormRequest
     {
         $this->ensureIsNotRateLimited();
 
-        if (! Auth::attempt($this->only('email', 'password'), $this->boolean('remember'))) {
+        // Logistics sessions are browser-session only: never create a persistent
+        // "remember me" cookie, even if a `remember` input is posted.
+        if (! Auth::attempt($this->only('email', 'password'), false)) {
             RateLimiter::hit($this->throttleKey());
 
             throw ValidationException::withMessages([
@@ -63,12 +65,8 @@ class LoginRequest extends FormRequest
         if (! in_array($user->role, ['admin', 'staff'])) {
             Auth::guard('web')->logout();
 
-            $message = $user->role === 'rider'
-                ? 'Rider accounts must sign in through the rider mobile application.'
-                : 'This account does not have access to the Logistics system.';
-
             throw ValidationException::withMessages([
-                'email' => $message,
+                'email' => 'This account does not have Logistics access.',
             ]);
         }
 

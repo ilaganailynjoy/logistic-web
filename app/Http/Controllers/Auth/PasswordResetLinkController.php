@@ -12,7 +12,10 @@ use Illuminate\View\View;
 class PasswordResetLinkController extends Controller
 {
     /**
-     * Display the password reset link request view.
+     * Display the administrator-assisted password recovery view.
+     *
+     * Logistics accounts have no recovery email: passwords are reset by the
+     * system administrator, so no reset link is ever emailed or requested.
      */
     public function create(): View
     {
