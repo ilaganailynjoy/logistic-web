@@ -6,6 +6,7 @@ use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Request;
 
 use App\Http\Middleware\EnsureRiderRole;
+use App\Http\Middleware\EnsureRiderWeb;
 use App\Http\Middleware\EnsureLogisticsStaff;
 
 return Application::configure(basePath: dirname(__DIR__))
@@ -20,6 +21,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'role' => EnsureRiderRole::class,
             'staff' => EnsureLogisticsStaff::class,
+            'rider.web' => EnsureRiderWeb::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

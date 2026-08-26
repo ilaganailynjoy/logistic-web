@@ -1,24 +1,24 @@
 <x-app-layout>
     @php
-        $totalUnread = \App\Models\Conversation::sum('unread_count');
-        $hasFilters = trim((string) request('search')) !== '' || request('filter', 'all') !== 'all';
-
-        $ago = function ($date) {
-            if (!$date) return '';
-            $diff = now()->diffInSeconds($date);
-            if ($diff < 60) return 'Just now';
-            if ($diff < 3600) return floor($diff / 60) . ' min ago';
-            if ($diff < 86400) return floor($diff / 3600) . ' hr ago';
-            if ($diff < 604800) return floor($diff / 86400) . ' d ago';
-            return $date->format('M j, Y');
-        };
-
-        $convoUrl = fn ($c) => request()->fullUrlWithQuery(['conversation' => $c->id]);
-        $chipUrl = fn ($f) => request()->fullUrlWithQuery(['filter' => $f, 'page' => null]);
-        $currentFilter = request('filter', 'all');
+        $activeJson = $activeConversation ? [
+            'id' => $activeConversation->id,
+            'name' => $activeConversation->participant_name,
+            'type' => $activeConversation->participant_type,
+            'order_id' => $activeConversation->order_id,
+            'tracking' => $activeConversation->delivery?->tracking_number,
+        ] : null;
     @endphp
-
-    <div class="h-[calc(100vh-7rem)] flex bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+    <div x-data="messagesApp({
+            conversations: @js($conversationsData),
+            messages: @js($messagesData),
+            active: @js($activeJson),
+            totalUnread: {{ $totalUnread }},
+            search: @js(request('search', '')),
+            filter: @js(request('filter', 'all')),
+            perPage: {{ (int) request('per_page', 10) }},
+            csrf: @js(csrf_token())
+        })"
+         class="h-[calc(100vh-7rem)] flex bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
 
         {{-- ================= Conversation List Panel ================= --}}
         <div class="w-full sm:w-80 lg:w-96 border-r border-gray-200 flex-col bg-gray-50/50 flex-shrink-0 {{ $activeConversation ? 'hidden sm:flex' : 'flex' }}">
@@ -27,16 +27,12 @@
             <div class="px-4 py-4 border-b border-gray-200 bg-white">
                 <div class="flex items-center justify-between mb-3">
                     <h1 class="text-lg font-bold text-gray-900">Messages</h1>
-                    @if($totalUnread > 0)
-                        <span class="bg-secondary text-white text-xs font-bold px-2 py-0.5 rounded-full">{{ $totalUnread }}</span>
-                    @endif
+                    <span x-show="totalUnread > 0" x-text="totalUnread" x-cloak class="bg-secondary text-white text-xs font-bold px-2 py-0.5 rounded-full"></span>
                 </div>
 
-                {{-- Search --}}
+                {{-- Search (full page GET) --}}
                 <form method="GET" action="{{ route('messages.index') }}" class="relative mb-3">
-                    @if(request('filter') && request('filter') !== 'all')
-                        <input type="hidden" name="filter" value="{{ request('filter') }}">
-                    @endif
+                    <input type="hidden" name="filter" value="{{ request('filter', 'all') }}">
                     @if(request('per_page'))
                         <input type="hidden" name="per_page" value="{{ request('per_page') }}">
                     @endif
@@ -52,77 +48,85 @@
                     @endif
                 </form>
 
-                {{-- Filters --}}
+                {{-- Filters (generated from participant types that actually exist) --}}
                 <div class="flex gap-1.5">
-                    @foreach(['all' => 'All', 'rider' => 'Riders', 'seller' => 'Sellers'] as $key => $label)
-                        <a href="{{ $chipUrl($key) }}"
-                           class="px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors {{ $currentFilter === $key ? 'bg-teal text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200' }}">
-                            {{ $label }}
+                    <a href="{{ request()->fullUrlWithQuery(['filter' => 'all', 'page' => null]) }}"
+                       class="px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors {{ request('filter', 'all') === 'all' ? 'bg-teal text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200' }}">
+                        All
+                    </a>
+                    @foreach($roleFilters as $type)
+                        <a href="{{ request()->fullUrlWithQuery(['filter' => $type, 'page' => null]) }}"
+                           class="px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors {{ request('filter', 'all') === $type ? 'bg-teal text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200' }}">
+                            {{ ucfirst(\Illuminate\Support\Str::plural($type)) }}
                         </a>
                     @endforeach
                 </div>
             </div>
 
-            {{-- Conversation List --}}
+            {{-- Conversation List (Alpine-driven, auto-updates) --}}
             <div class="flex-1 overflow-y-auto">
-                @forelse($conversations as $conv)
-                    <a href="{{ $convoUrl($conv) }}"
-                       class="block px-4 py-3.5 border-b border-gray-100 transition-colors hover:bg-white {{ $activeConversation && $activeConversation->id === $conv->id ? 'bg-white shadow-sm' : '' }}">
+                <template x-for="conv in sortedConversations" :key="conv.id">
+                    <a href="#"
+                       @click.prevent="selectConversation(conv.id)"
+                       class="block px-4 py-3.5 border-b border-gray-100 transition-colors hover:bg-white"
+                       :class="active && active.id === conv.id ? 'bg-white shadow-sm' : ''">
                         <div class="flex items-start gap-3">
                             <div class="relative flex-shrink-0">
-                                <div class="h-11 w-11 rounded-full flex items-center justify-center text-sm font-bold {{ $conv->participant_type === 'rider' ? 'bg-teal-light text-teal-dark' : 'bg-amber-100 text-amber-700' }}">
-                                    {{ strtoupper(substr($conv->participant_name, 0, 1)) }}
-                                </div>
-                                @if($conv->participant_type === 'rider')
-                                    <span class="absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full border-2 border-white bg-green-400"></span>
-                                @endif
+                                <div class="h-11 w-11 rounded-full flex items-center justify-center text-sm font-bold"
+                                     :class="conv.type === 'rider' ? 'bg-teal-light text-teal-dark' : 'bg-amber-100 text-amber-700'"
+                                     x-text="(conv.name || '?').charAt(0).toUpperCase()"></div>
+                                <span x-show="conv.type === 'rider'" class="absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full border-2 border-white bg-green-400"></span>
                             </div>
 
                             <div class="flex-1 min-w-0">
                                 <div class="flex items-center justify-between gap-2 mb-0.5">
                                     <div class="flex items-center gap-1.5 min-w-0">
-                                        <span class="text-sm font-semibold {{ $conv->unread_count > 0 ? 'text-gray-900' : 'text-gray-700' }} truncate">{{ $conv->participant_name }}</span>
-                                        <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide flex-shrink-0 {{ $conv->participant_type === 'rider' ? 'bg-teal-light text-teal-dark' : 'bg-amber-50 text-amber-700' }}">
-                                            {{ ucfirst($conv->participant_type) }}
-                                        </span>
+                                        <span class="text-sm font-semibold truncate" :class="conv.unread > 0 ? 'text-gray-900' : 'text-gray-700'" x-text="conv.name"></span>
+                                        <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide flex-shrink-0"
+                                              :class="conv.type === 'rider' ? 'bg-teal-light text-teal-dark' : 'bg-amber-50 text-amber-700'"
+                                              x-text="conv.type.charAt(0).toUpperCase() + conv.type.slice(1)"></span>
                                     </div>
-                                    <span class="text-[11px] text-gray-400 whitespace-nowrap flex-shrink-0">{{ $ago($conv->last_message_at) }}</span>
+                                    <span class="text-[11px] text-gray-400 whitespace-nowrap flex-shrink-0" x-text="agoLabel(conv.last_message_at)"></span>
                                 </div>
 
-                                @if($conv->order_id)
-                                    <div class="text-xs text-teal font-medium mb-0.5">Order #{{ $conv->order_id }}</div>
-                                @endif
+                                <div x-show="conv.order_id" class="text-xs text-teal font-medium mb-0.5">
+                                    Order #<span x-text="conv.order_id"></span><span x-show="conv.tracking"> · <span x-text="conv.tracking"></span></span>
+                                </div>
 
                                 <div class="flex items-center justify-between gap-2">
-                                    <p class="text-xs {{ $conv->unread_count > 0 ? 'text-gray-800 font-medium' : 'text-gray-500' }} truncate">
-                                        {{ $conv->last_message_preview ?? 'No messages yet' }}
+                                    <p class="text-xs truncate" :class="conv.unread > 0 ? 'text-gray-800 font-medium' : 'text-gray-500'">
+                                        <span x-show="conv.has_attachment" x-cloak class="inline-flex items-center mr-1 text-gray-400" title="Latest message has an attachment">
+                                            <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/></svg>
+                                        </span>
+                                        <span x-text="conv.preview || 'No messages yet'"></span>
                                     </p>
-                                    @if($conv->unread_count > 0)
-                                        <span class="inline-flex items-center justify-center h-5 min-w-[20px] px-1.5 rounded-full bg-secondary text-white text-[10px] font-bold flex-shrink-0">{{ $conv->unread_count }}</span>
-                                    @endif
+                                    <span x-show="conv.unread > 0" x-text="conv.unread"
+                                          class="inline-flex items-center justify-center h-5 min-w-[20px] px-1.5 rounded-full bg-secondary text-white text-[10px] font-bold flex-shrink-0"></span>
                                 </div>
                             </div>
                         </div>
                     </a>
-                @empty
-                    <div class="flex flex-col items-center justify-center py-12 px-4 text-center">
-                        <div class="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center mb-3">
-                            <svg class="h-6 w-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                            </svg>
-                        </div>
-                        <p class="text-sm font-semibold text-gray-700">No messages found.</p>
-                        @if($hasFilters)
-                            <p class="text-xs text-gray-500 mt-1">Nothing matches your current search or filters.</p>
-                            <a href="{{ route('messages.index') }}" class="mt-3 inline-flex items-center px-4 py-2 bg-white border border-gray-200 hover:border-teal hover:text-teal-dark rounded-xl text-sm font-semibold text-gray-600 transition">
-                                Clear Search
-                            </a>
-                        @endif
+                </template>
+
+                <div x-show="conversations.length === 0" class="flex flex-col items-center justify-center py-12 px-4 text-center">
+                    <div class="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center mb-3">
+                        <svg class="h-6 w-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                        </svg>
                     </div>
-                @endforelse
+                    <p class="text-sm font-semibold text-gray-700">
+                        @if(request('filter', 'all') !== 'all')
+                            No conversations with {{ \Illuminate\Support\Str::plural(request('filter')) }} yet.
+                        @elseif(trim((string) request('search')) !== '')
+                            No messages found.
+                        @else
+                            No messages yet.
+                        @endif
+                    </p>
+                    <p class="text-xs text-gray-500 mt-1">When a rider messages Logistics, the conversation will appear here automatically.</p>
+                </div>
             </div>
 
-            {{-- List footer: count + per-page --}}
             @if($conversations->count() > 0)
                 <div class="px-4 py-2.5 border-t border-gray-200 bg-white flex items-center justify-between gap-2 flex-wrap">
                     <p class="text-[11px] text-gray-500">
@@ -137,116 +141,343 @@
         </div>
 
         {{-- ================= Chat Panel ================= --}}
-        @if($activeConversation)
-            @php
-                $isRider = $activeConversation->participant_type === 'rider';
-            @endphp
-            <div class="flex-1 flex flex-col min-w-0">
-
-                {{-- Chat Header --}}
-                <div class="px-5 py-3.5 border-b border-gray-200 bg-white flex items-center gap-3 flex-shrink-0">
-                    <a href="{{ route('messages.index') }}" class="sm:hidden p-1.5 -ml-1.5 rounded-lg hover:bg-gray-100 text-gray-500" title="Back">
-                        <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
-                        </svg>
-                    </a>
-
-                    <div class="relative flex-shrink-0">
-                        <div class="h-10 w-10 rounded-full flex items-center justify-center text-sm font-bold {{ $isRider ? 'bg-teal-light text-teal-dark' : 'bg-amber-100 text-amber-700' }}">
-                            {{ strtoupper(substr($activeConversation->participant_name, 0, 1)) }}
-                        </div>
-                        @if($isRider)
-                            <span class="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-white bg-green-400"></span>
-                        @endif
-                    </div>
-
-                    <div class="flex-1 min-w-0">
-                        <div class="flex items-center gap-2">
-                            <h2 class="text-sm font-bold text-gray-900 truncate">{{ $activeConversation->participant_name }}</h2>
-                            <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide {{ $isRider ? 'bg-teal-light text-teal-dark' : 'bg-amber-50 text-amber-700' }}">
-                                {{ ucfirst($activeConversation->participant_type) }}
-                            </span>
-                        </div>
-                        <p class="text-xs text-gray-500">
-                            Order #{{ $activeConversation->order_id }}@if($activeConversation->delivery) · {{ $activeConversation->delivery->tracking_number }}@endif
-                        </p>
-                    </div>
-
-                    <div class="flex items-center gap-1">
-                        <div class="w-2 h-2 rounded-full {{ $isRider ? 'bg-green-400' : 'bg-gray-300' }}"></div>
-                        <span class="text-xs text-gray-400">{{ $isRider ? 'Online' : 'Offline' }}</span>
-                    </div>
-                </div>
-
-                {{-- Messages --}}
-                <div class="flex-1 overflow-y-auto px-5 py-4 space-y-1"
-                     style="background: linear-gradient(180deg, #F7F6F2 0%, #FFFFFF 100%);">
-
-                    @forelse(array_reverse($activeConversation->messages->take(-200)->values()->all()) as $msg)
-                        @php
-                            $mine = $msg->sender_type === 'logistics';
-                            $showDate = !isset($prevDate) || !$prevDate || !$msg->created_at->isSameDay($prevDate);
-                            $prevDate = $msg->created_at;
-                        @endphp
-
-                        @if($showDate)
-                            <div class="flex items-center justify-center py-3">
-                                <span class="px-3 py-1 bg-gray-200/70 rounded-full text-[11px] font-medium text-gray-500">{{ $msg->created_at->isToday() ? 'Today' : ($msg->created_at->isYesterday() ? 'Yesterday' : $msg->created_at->format('F j, Y')) }}</span>
-                            </div>
-                        @endif
-
-                        <div class="flex mb-2 {{ $mine ? 'justify-end' : 'justify-start' }}">
-                            <div class="max-w-[75%] sm:max-w-[60%]">
-                                <div class="px-4 py-2.5 rounded-2xl text-sm leading-relaxed {{ $mine ? 'bg-teal text-white rounded-br-md' : 'bg-white border border-gray-200 text-gray-900 rounded-bl-md shadow-sm' }}">
-                                    {{ $msg->body }}
-                                </div>
-                                <div class="flex items-center gap-1.5 mt-1 px-1 {{ $mine ? 'justify-end' : 'justify-start' }}">
-                                    <span class="text-[10px] text-gray-400">{{ $msg->created_at->format('g:i A') }}</span>
-                                    @if($mine)
-                                        @if($msg->is_read)
-                                            <svg class="h-3.5 w-3.5 text-teal" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
-                                        @else
-                                            <svg class="h-3.5 w-3.5 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
-                                        @endif
-                                    @endif
-                                </div>
-                            </div>
-                        </div>
-                    @empty
-                        <div class="flex flex-col items-center justify-center h-full text-gray-400">
-                            <p class="text-sm">No messages yet. Say hello!</p>
-                        </div>
-                    @endforelse
-                </div>
-
-                {{-- Message Input --}}
-                <div class="px-5 py-4 border-t border-gray-200 bg-white flex-shrink-0">
-                    <form method="POST" action="{{ route('messages.store') }}" class="flex items-end gap-3">
-                        @csrf
-                        <input type="hidden" name="conversation_id" value="{{ $activeConversation->id }}">
-                        <textarea name="body" required maxlength="2000" placeholder="Type a message..." rows="1"
-                                  class="flex-1 px-4 py-2.5 bg-gray-100 border-0 rounded-xl text-sm text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-teal focus:bg-white resize-none transition"
-                                  style="min-height: 42px;"></textarea>
-                        <button type="submit"
-                                class="flex items-center justify-center h-[42px] w-[42px] rounded-xl bg-teal text-white hover:bg-teal-dark shadow-sm transition-all flex-shrink-0">
-                            <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
-                            </svg>
-                        </button>
-                    </form>
-                </div>
-            </div>
-        @else
-            {{-- Empty State --}}
-            <div class="flex-1 hidden sm:flex flex-col items-center justify-center text-center px-6">
-                <div class="w-16 h-16 rounded-2xl bg-teal-light flex items-center justify-center mb-4">
-                    <svg class="h-8 w-8 text-teal" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+        <div class="flex-1 flex flex-col min-w-0" x-show="active">
+            {{-- Chat Header --}}
+            <div class="px-5 py-3.5 border-b border-gray-200 bg-white flex items-center gap-3 flex-shrink-0">
+                <a href="{{ route('messages.index') }}" class="sm:hidden p-1.5 -ml-1.5 rounded-lg hover:bg-gray-100 text-gray-500" title="Back">
+                    <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
                     </svg>
+                </a>
+
+                <div class="relative flex-shrink-0">
+                    <div class="h-10 w-10 rounded-full flex items-center justify-center text-sm font-bold bg-teal-light text-teal-dark"
+                         x-text="active ? (active.name || '?').charAt(0).toUpperCase() : ''"></div>
+                    <span x-show="active && active.type === 'rider'" class="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-white bg-green-400"></span>
                 </div>
-                <h3 class="text-lg font-semibold text-gray-900 mb-1">Select a conversation</h3>
-                <p class="text-sm text-gray-500 max-w-sm">Choose a conversation from the list to start messaging with riders or sellers about deliveries.</p>
+
+                <div class="flex-1 min-w-0">
+                    <div class="flex items-center gap-2">
+                        <h2 class="text-sm font-bold text-gray-900 truncate" x-text="active?.name"></h2>
+                        <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide bg-teal-light text-teal-dark"
+                              x-text="active ? active.type.charAt(0).toUpperCase() + active.type.slice(1) : ''"></span>
+                    </div>
+                    <p class="text-xs text-gray-500">
+                        <span x-show="active && active.order_id">Order #<span x-text="active?.order_id"></span><span x-show="active?.tracking"> · <span x-text="active?.tracking"></span></span></span>
+                        <span x-show="!active || !active.order_id">Conversation</span>
+                    </p>
+                </div>
             </div>
-        @endif
+
+            {{-- Messages (Alpine-driven, auto-updates) --}}
+            <div x-ref="thread" class="flex-1 overflow-y-auto px-5 py-4 space-y-1"
+                 style="background: linear-gradient(180deg, #F7F6F2 0%, #FFFFFF 100%);">
+
+                <template x-for="(msg, idx) in messages" :key="msg.id">
+                    <div>
+                        <div x-show="idx === 0 || messages[idx - 1].day !== msg.day" class="flex items-center justify-center py-3">
+                            <span class="px-3 py-1 bg-gray-200/70 rounded-full text-[11px] font-medium text-gray-500" x-text="msg.dayLabel"></span>
+                        </div>
+
+                        <div class="flex mb-2" :class="msg.mine ? 'justify-end' : 'justify-start'">
+                            <div class="max-w-[75%] group">
+                                <div class="inline-block w-fit max-w-full px-3.5 py-2 rounded-2xl text-sm leading-snug text-left whitespace-pre-wrap break-words align-top" :class="msg.mine ? 'bg-teal text-white rounded-br-md' : 'bg-white border border-gray-200 text-gray-900 rounded-bl-md shadow-sm'"><span x-text="msg.deleted ? 'This message was deleted.' : msg.body" :class="msg.deleted ? 'italic opacity-60' : ''"></span><span x-show="msg.edited_at && !msg.deleted" class="text-[10px] italic opacity-70 ml-1.5">Edited</span></div>
+
+                                {{-- Attachments --}}
+                                <template x-for="att in (msg.deleted ? [] : msg.attachments)" :key="att.id">
+                                    <div class="mt-1.5" :class="msg.mine ? 'text-right' : 'text-left'">
+                                        <div class="inline-block bg-white border border-gray-200 rounded-xl p-2 max-w-[240px] text-left shadow-sm">
+                                            <template x-if="att.is_image">
+                                                <img :src="att.view_url" :alt="att.name"
+                                                     class="max-h-40 w-auto max-w-full object-contain rounded-lg cursor-zoom-in mb-1.5"
+                                                     @click="lightbox = { url: att.view_url, name: att.name }">
+                                            </template>
+                                            <p class="text-xs font-semibold text-gray-800 truncate" x-text="att.name"></p>
+                                            <p class="text-[10px] text-gray-400 mb-1.5"><span x-text="att.size"></span><span x-show="att.is_pdf"> · PDF</span></p>
+                                            <div class="flex gap-1.5">
+                                                <a :href="att.view_url" target="_blank"
+                                                   class="inline-flex items-center gap-1 px-2 py-1 bg-teal-light text-teal-dark hover:bg-teal hover:text-white rounded-lg text-[11px] font-semibold transition">
+                                                    View
+                                                </a>
+                                                <a :href="att.download_url"
+                                                   class="inline-flex items-center gap-1 px-2 py-1 bg-gray-100 text-gray-600 hover:bg-gray-200 rounded-lg text-[11px] font-semibold transition">
+                                                    Download
+                                                </a>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </template>
+
+                                <div class="flex items-center gap-1.5 mt-1 px-1" :class="msg.mine ? 'justify-end' : 'justify-start'">
+                                    <span class="text-[10px] text-gray-400" x-text="msg.time"></span>
+                                    <template x-if="msg.mine && !msg.deleted">
+                                        <div class="flex items-center gap-1">
+                                            <button type="button" @click="startEdit(msg)" class="text-[10px] text-gray-400 hover:text-teal opacity-0 group-hover:opacity-100 transition" title="Edit message">Edit</button>
+                                            <button type="button" @click="deleteMessage(msg)" class="text-[10px] text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition" title="Delete message">Delete</button>
+                                            <span x-show="msg.is_read" class="text-teal">
+                                                <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                                            </span>
+                                            <span x-show="!msg.is_read" class="text-gray-300">
+                                                <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                                            </span>
+                                        </div>
+                                    </template>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </template>
+
+                <div x-show="active && messages.length === 0" class="flex flex-col items-center justify-center h-full text-gray-400">
+                    <p class="text-sm">No messages yet. Say hello!</p>
+                </div>
+            </div>
+
+            {{-- Message Input --}}
+            <div class="px-5 py-4 border-t border-gray-200 bg-white flex-shrink-0">
+                <form @submit.prevent="sendMessage" class="flex items-end gap-3">
+                    <div class="flex-1">
+                        <div x-show="editing" x-cloak class="flex items-center justify-between bg-amber-50 border border-amber-200 rounded-t-xl px-3 py-1.5">
+                            <span class="text-[11px] font-semibold text-amber-700">Editing message</span>
+                            <button type="button" @click="cancelEdit" class="text-[11px] text-amber-700 hover:text-amber-900 font-semibold">Cancel</button>
+                        </div>
+                        <textarea x-ref="bodyInput" x-model="draft" @keydown.enter.exact.prevent="sendMessage" required maxlength="2000"
+                                  :placeholder="editing ? 'Update your message...' : 'Type a message...'" rows="1"
+                                  class="w-full px-4 py-2.5 bg-gray-100 border-0 rounded-xl text-sm text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-teal focus:bg-white resize-none transition"
+                                  style="min-height: 42px;"
+                                  :class="editing ? 'rounded-t-none' : ''"></textarea>
+                    </div>
+
+                    <label class="flex items-center justify-center h-[42px] w-[42px] rounded-xl bg-gray-100 text-gray-500 hover:bg-gray-200 cursor-pointer transition-all flex-shrink-0" title="Attach a file">
+                        <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+                        </svg>
+                        <input type="file" class="hidden" x-ref="attachment" accept=".jpg,.jpeg,.png,.webp,.pdf,.doc,.docx,.xls,.xlsx,.csv">
+                    </label>
+                    <span x-show="attachmentName" x-cloak class="text-[11px] text-gray-500 max-w-[120px] truncate" x-text="attachmentName"></span>
+
+                    <button type="submit" :disabled="sending"
+                            class="flex items-center justify-center h-[42px] w-[42px] rounded-xl bg-teal text-white hover:bg-teal-dark shadow-sm transition-all flex-shrink-0 disabled:opacity-60">
+                        <svg x-show="!sending" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                        </svg>
+                        <svg x-show="sending" x-cloak class="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-90" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
+                        </svg>
+                    </button>
+                </form>
+                <p x-show="error" x-cloak x-text="error" class="mt-2 text-xs text-red-600"></p>
+            </div>
+        </div>
+
+        {{-- No conversation selected --}}
+        <div class="flex-1 hidden sm:flex flex-col items-center justify-center text-center px-6" x-show="!active">
+            <div class="w-16 h-16 rounded-2xl bg-teal-light flex items-center justify-center mb-4">
+                <svg class="h-8 w-8 text-teal" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                </svg>
+            </div>
+            <h3 class="text-lg font-semibold text-gray-900 mb-1">No messages yet</h3>
+            <p class="text-sm text-gray-500 max-w-sm">When a rider sends Logistics a message, the conversation will appear here automatically.</p>
+        </div>
+
+        {{-- Image lightbox --}}
+        <div x-show="lightbox" x-cloak class="fixed inset-0 z-[60] flex items-center justify-center p-6 bg-black/80" @click="lightbox = null" @keydown.escape.window="lightbox = null">
+            <div class="relative max-w-5xl max-h-full">
+                <img :src="lightbox?.url" :alt="lightbox?.name" class="max-w-full max-h-[85vh] object-contain rounded-xl shadow-2xl">
+                <button type="button" @click="lightbox = null" class="absolute -top-3 -right-3 p-1.5 bg-white rounded-full shadow-lg text-gray-600 hover:text-gray-900" aria-label="Close preview">
+                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+            </div>
+        </div>
     </div>
+
+    @push('scripts')
+    <script>
+        function messagesApp(init) {
+            return {
+                conversations: init.conversations,
+                messages: init.messages,
+                active: init.active,
+                totalUnread: init.totalUnread,
+                search: init.search,
+                filter: init.filter,
+                perPage: init.perPage,
+                csrf: init.csrf,
+                draft: '',
+                attachmentName: '',
+                editing: null,
+                sending: false,
+                error: '',
+                lightbox: null,
+                pollTimer: null,
+
+                init() {
+                    this.scrollToBottom();
+                    this.pollTimer = setInterval(() => this.poll(), 8000);
+                    this.$watch('messages', () => this.$nextTick(() => this.scrollToBottom()));
+                },
+
+                get sortedConversations() {
+                    return [...this.conversations].sort((a, b) => (b.last_message_at || '').localeCompare(a.last_message_at || ''));
+                },
+
+                scrollToBottom() {
+                    this.$nextTick(() => {
+                        const el = this.$refs.thread;
+                        if (el) el.scrollTop = el.scrollHeight;
+                    });
+                },
+
+                agoLabel(iso) {
+                    if (!iso) return '';
+                    const diff = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
+                    if (diff < 60) return 'Just now';
+                    if (diff < 3600) return Math.floor(diff / 60) + ' min ago';
+                    if (diff < 86400) return Math.floor(diff / 3600) + ' hr ago';
+                    if (diff < 604800) return Math.floor(diff / 86400) + ' d ago';
+                    return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+                },
+
+                async selectConversation(id) {
+                    this.error = '';
+                    try {
+                        const r = await fetch('/messages/' + id, { headers: { 'Accept': 'application/json' } });
+                        if (!r.ok) throw new Error('Could not open this conversation.');
+                        const data = await r.json();
+                        this.active = data.active;
+                        this.messages = data.messages;
+                        this.totalUnread = data.totalUnread;
+                        this.conversations = this.conversations.map(c => c.id === id ? { ...c, unread: 0 } : c);
+                        this.editing = null;
+                        this.draft = '';
+
+                        // Keep the selected conversation after a page refresh.
+                        const params = new URLSearchParams(window.location.search);
+                        params.set('conversation', id);
+                        params.delete('page');
+                        history.replaceState(null, '', window.location.pathname + '?' + params.toString());
+                    } catch (e) {
+                        this.error = e.message || 'Failed to open the conversation.';
+                    }
+                },
+
+                async sendMessage() {
+                    if (!this.active) return;
+                    const body = this.draft.trim();
+                    if (!body && !this.$refs.attachment.files.length) {
+                        this.error = 'Please type a message before sending.';
+                        return;
+                    }
+                    if (this.editing) {
+                        await this.saveEdit();
+                        return;
+                    }
+
+                    this.sending = true;
+                    this.error = '';
+                    try {
+                        const fd = new FormData();
+                        fd.append('conversation_id', this.active.id);
+                        fd.append('body', body);
+                        if (this.$refs.attachment.files[0]) {
+                            fd.append('attachment', this.$refs.attachment.files[0]);
+                        }
+                        const r = await fetch('/messages', {
+                            method: 'POST',
+                            headers: { 'X-CSRF-TOKEN': this.csrf, 'Accept': 'application/json' },
+                            body: fd,
+                        });
+                        if (!r.ok) {
+                            const data = await r.json().catch(() => ({}));
+                            throw new Error(data.message || 'The message could not be sent. Please try again.');
+                        }
+                        this.draft = '';
+                        this.$refs.attachment.value = '';
+                        this.attachmentName = '';
+                        await this.poll();
+                    } catch (e) {
+                        this.error = e.message || 'The message could not be sent.';
+                    } finally {
+                        this.sending = false;
+                    }
+                },
+
+                startEdit(msg) {
+                    this.editing = msg;
+                    this.draft = msg.body;
+                    this.$refs.bodyInput.focus();
+                },
+
+                cancelEdit() {
+                    this.editing = null;
+                    this.draft = '';
+                },
+
+                async saveEdit() {
+                    if (!this.editing || !this.draft.trim()) return;
+                    this.sending = true;
+                    this.error = '';
+                    try {
+                        const r = await fetch('/messages/' + this.editing.id, {
+                            method: 'PATCH',
+                            headers: { 'X-CSRF-TOKEN': this.csrf, 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                            body: JSON.stringify({ body: this.draft.trim() }),
+                        });
+                        if (r.status === 403) throw new Error('You can only edit your own messages.');
+                        if (!r.ok) throw new Error('The message could not be updated.');
+                        this.editing.body = this.draft.trim();
+                        this.editing.edited_at = new Date().toISOString();
+                        this.cancelEdit();
+                        this.poll();
+                    } catch (e) {
+                        this.error = e.message || 'The message could not be updated.';
+                    } finally {
+                        this.sending = false;
+                    }
+                },
+
+                async deleteMessage(msg) {
+                    if (!confirm('Delete this message?')) return;
+                    this.error = '';
+                    try {
+                        const r = await fetch('/messages/' + msg.id, {
+                            method: 'DELETE',
+                            headers: { 'X-CSRF-TOKEN': this.csrf, 'Accept': 'application/json' },
+                        });
+                        if (r.status === 403) throw new Error('You can only delete your own messages.');
+                        if (!r.ok) throw new Error('The message could not be deleted.');
+                        msg.deleted = true;
+                        msg.attachments = [];
+                        this.poll();
+                    } catch (e) {
+                        this.error = e.message || 'The message could not be deleted.';
+                    }
+                },
+
+                async poll() {
+                    try {
+                        const params = new URLSearchParams({
+                            conversation: this.active ? this.active.id : '',
+                            search: this.search || '',
+                            filter: this.filter || 'all',
+                            per_page: this.perPage || 10,
+                        });
+                        const r = await fetch('/messages/poll?' + params.toString(), { headers: { 'Accept': 'application/json' } });
+                        if (!r.ok) return;
+                        const data = await r.json();
+                        this.conversations = data.conversations;
+                        this.totalUnread = data.totalUnread;
+                        if (data.active && this.active && data.active.id === this.active.id) {
+                            this.messages = data.messages;
+                        }
+                    } catch (e) {
+                        // Network hiccup: keep showing current data; next tick retries.
+                    }
+                },
+            };
+        }
+    </script>
+    @endpush
 </x-app-layout>

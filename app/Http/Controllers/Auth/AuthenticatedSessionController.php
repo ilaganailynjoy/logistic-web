@@ -41,6 +41,11 @@ class AuthenticatedSessionController extends Controller
         // the browser always requires a fresh login.
         cookie()->queue(cookie()->forget(Auth::guard('web')->getRecallerName()));
 
+        // Riders land on their messaging page, not the Logistics dashboard.
+        if ($request->user()->role === 'rider') {
+            return redirect()->intended(route('rider.messages', absolute: false));
+        }
+
         return redirect()->intended(route('dashboard', absolute: false));
     }
 

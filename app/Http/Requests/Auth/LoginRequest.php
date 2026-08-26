@@ -62,7 +62,9 @@ class LoginRequest extends FormRequest
 
         $user = Auth::user();
 
-        if (! in_array($user->role, ['admin', 'staff'])) {
+        // admin/staff -> Logistics Center; rider -> rider messaging page.
+        // Any other role has no access to this system.
+        if (! in_array($user->role, ['admin', 'staff', 'rider'])) {
             Auth::guard('web')->logout();
 
             throw ValidationException::withMessages([

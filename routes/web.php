@@ -9,6 +9,7 @@ use App\Http\Controllers\SettingController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\MessageController;
+use App\Http\Controllers\RiderMessageController;
 use App\Http\Controllers\VehicleTypeController;
 use Illuminate\Support\Facades\Route;
 
@@ -59,9 +60,14 @@ Route::middleware(['auth', 'verified', 'staff'])->group(function () {
     Route::patch('notifications/read-all', [NotificationController::class, 'markAllRead'])->name('notifications.mark-all-read');
 
     Route::get('messages', [MessageController::class, 'index'])->name('messages.index');
+    Route::get('messages/poll', [MessageController::class, 'poll'])->name('messages.poll');
     Route::get('messages/{conversation}', [MessageController::class, 'show'])->name('messages.show');
     Route::post('messages', [MessageController::class, 'store'])->name('messages.store');
-    Route::patch('messages/{conversation}/read', [MessageController::class, 'markRead'])->name('messages.mark-read');
+    Route::patch('messages/{message}', [MessageController::class, 'update'])->name('messages.update');
+    Route::delete('messages/{message}', [MessageController::class, 'destroy'])->name('messages.destroy');
+    Route::patch('messages-read/{conversation}', [MessageController::class, 'markRead'])->name('messages.mark-read');
+    Route::get('attachments/{attachment}/view', [MessageController::class, 'viewAttachment'])->name('messages.attachments.view');
+    Route::get('attachments/{attachment}/download', [MessageController::class, 'downloadAttachment'])->name('messages.attachments.download');
 
     Route::get('profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('profile', [ProfileController::class, 'update'])->name('profile.update');
@@ -70,5 +76,17 @@ Route::middleware(['auth', 'verified', 'staff'])->group(function () {
 
 Route::get('apply', [RiderApplicationController::class, 'create'])->name('rider-applications.create');
 Route::post('apply', [RiderApplicationController::class, 'store'])->name('rider-applications.store');
+
+// Rider messaging (riders authenticate through the Logistics login but only
+// access their own conversation — no Logistics dashboard access).
+Route::middleware(['auth', 'rider.web'])->group(function () {
+    Route::get('rider/messages', [RiderMessageController::class, 'index'])->name('rider.messages');
+    Route::get('rider/messages/poll', [RiderMessageController::class, 'poll'])->name('rider.messages.poll');
+    Route::post('rider/messages', [RiderMessageController::class, 'store'])->name('rider.messages.send');
+    Route::patch('rider/messages/{message}', [RiderMessageController::class, 'update'])->name('rider.messages.update');
+    Route::delete('rider/messages/{message}', [RiderMessageController::class, 'destroy'])->name('rider.messages.destroy');
+    Route::get('rider/attachments/{attachment}/view', [RiderMessageController::class, 'viewAttachment'])->name('rider.messages.attachments.view');
+    Route::get('rider/attachments/{attachment}/download', [RiderMessageController::class, 'downloadAttachment'])->name('rider.messages.attachments.download');
+});
 
 require __DIR__.'/auth.php';
