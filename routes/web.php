@@ -38,6 +38,8 @@ Route::middleware(['auth', 'verified', 'staff'])->group(function () {
     Route::post('vehicle-types/{vehicleType}/toggle', [VehicleTypeController::class, 'toggle'])->name('vehicle-types.toggle');
 
     Route::resource('rider-applications', RiderApplicationController::class)->only(['index', 'show']);
+    Route::get('rider-applications/{riderApplication}/documents/{document}/view', [RiderApplicationController::class, 'viewDocument'])->name('rider-applications.documents.view');
+    Route::get('rider-applications/{riderApplication}/documents/{document}/download', [RiderApplicationController::class, 'downloadDocument'])->name('rider-applications.documents.download');
     Route::post('rider-applications/{riderApplication}/approve', [RiderApplicationController::class, 'approve'])->name('rider-applications.approve');
     Route::post('rider-applications/{riderApplication}/reject', [RiderApplicationController::class, 'reject'])->name('rider-applications.reject');
     Route::post('rider-applications/{riderApplication}/revert', [RiderApplicationController::class, 'revertToPending'])->name('rider-applications.revert');

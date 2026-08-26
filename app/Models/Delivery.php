@@ -31,6 +31,9 @@ class Delivery extends Model
         'status',
         'weight',
         'notes',
+        'package_type',
+        'package_description',
+        'priority',
         'payment_method',
         'amount_to_collect',
         'delivery_fee',
@@ -70,6 +73,21 @@ class Delivery extends Model
             'failed_at' => 'datetime',
             'archived_at' => 'datetime',
         ];
+    }
+
+    protected static function booted(): void
+    {
+        // Auto-generate a unique tracking number (TRK-YYYYMMDD-XXXX).
+        // Independent of rider assignment so a delivery can always be created.
+        static::creating(function (Delivery $delivery) {
+            if (empty($delivery->tracking_number)) {
+                do {
+                    $candidate = 'TRK-' . now()->format('Ymd') . '-' . strtoupper(\Illuminate\Support\Str::random(4));
+                } while (self::where('tracking_number', $candidate)->exists());
+
+                $delivery->tracking_number = $candidate;
+            }
+        });
     }
 
     public function rider(): BelongsTo

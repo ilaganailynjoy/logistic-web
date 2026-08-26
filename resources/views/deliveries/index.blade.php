@@ -126,7 +126,11 @@
                                 {{ $delivery->recipient_name }}
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                {{ $delivery->rider->name ?? '—' }}
+                                @if($delivery->rider)
+                                    {{ $delivery->rider->name }}
+                                @else
+                                    <span class="inline-flex items-center px-2 py-0.5 text-xs font-semibold rounded-full bg-gray-100 text-gray-500 ring-1 ring-inset ring-gray-200">Unassigned</span>
+                                @endif
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap">
                                 <x-status-badge :status="$delivery->status" />

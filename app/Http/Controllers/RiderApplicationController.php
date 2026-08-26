@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Rider;
 use App\Models\RiderApplication;
+use App\Models\RiderApplicationDocument;
 use App\Models\RiderApplicationLog;
 use App\Models\Notification;
 use App\Models\VehicleType;
@@ -66,7 +67,7 @@ class RiderApplicationController extends Controller
 
     public function show(RiderApplication $riderApplication): View
     {
-        $riderApplication->load('logs.changer');
+        $riderApplication->load(['logs.changer', 'supportingDocuments']);
 
         return view('rider-applications.show', [
             'application' => $riderApplication,
@@ -95,32 +96,48 @@ class RiderApplicationController extends Controller
             'license_plate' => 'required|string|max:20',
             'license_number' => 'required|string|max:100',
             'vehicle_registration' => 'required|string|max:100',
-            'license_document' => 'required|file|mimes:jpg,jpeg,png,pdf|max:4096',
-            'registration_document' => 'required|file|mimes:jpg,jpeg,png,pdf|max:4096',
+            'documents' => 'required|array',
+            'documents.valid_id' => 'required|file|mimes:jpg,jpeg,png,webp,pdf,doc,docx|max:5120',
+            'documents.drivers_license' => 'required|file|mimes:jpg,jpeg,png,webp,pdf,doc,docx|max:5120',
+            'documents.vehicle_registration' => 'required|file|mimes:jpg,jpeg,png,webp,pdf,doc,docx|max:5120',
+            'documents.proof_of_address' => 'nullable|file|mimes:jpg,jpeg,png,webp,pdf,doc,docx|max:5120',
+            'documents.other' => 'nullable|file|mimes:jpg,jpeg,png,webp,pdf,doc,docx|max:5120',
         ], [
-            'license_document.required' => 'Please upload a photo of your driver license.',
-            'registration_document.required' => 'Please upload your vehicle registration document.',
+            'documents.required' => 'Please upload the required supporting documents.',
+            'documents.valid_id.required' => 'Please upload a copy of your valid ID.',
+            'documents.drivers_license.required' => 'Please upload a photo of your driver license.',
+            'documents.vehicle_registration.required' => 'Please upload your vehicle registration document.',
         ]);
 
         $data['phone'] = PhilippinePhone::normalize($data['phone']);
         $data['status'] = 'pending';
+        $data['documents'] = []; // legacy JSON column kept empty for new applications
 
-        $documents = [];
-        foreach (['license_document', 'registration_document'] as $doc) {
-            if ($request->hasFile($doc)) {
-                $file = $request->file($doc);
-                $filename = Str::uuid() . '.' . $file->getClientOriginalExtension();
-                $dir = public_path('uploads/applications');
-                if (!is_dir($dir)) {
-                    mkdir($dir, 0775, true);
+        $application = DB::transaction(function () use ($data, $request) {
+            $application = RiderApplication::create($data);
+
+            foreach (array_keys(\App\Models\RiderApplicationDocument::TYPES) as $type) {
+                $file = $request->file("documents.$type");
+
+                if (!$file || !$file->isValid()) {
+                    continue;
                 }
-                $file->move($dir, $filename);
-                $documents[$doc] = 'uploads/applications/' . $filename;
-            }
-        }
-        $data['documents'] = $documents;
 
-        $application = RiderApplication::create($data);
+                $filename = Str::uuid() . '.' . strtolower($file->getClientOriginalExtension());
+                $storedPath = $file->storeAs("rider-documents/{$application->id}", $filename);
+
+                \App\Models\RiderApplicationDocument::create([
+                    'rider_application_id' => $application->id,
+                    'document_type' => $type,
+                    'original_filename' => $file->getClientOriginalName(),
+                    'stored_path' => $storedPath,
+                    'mime_type' => $file->getMimeType(),
+                    'file_size' => $file->getSize(),
+                ]);
+            }
+
+            return $application;
+        });
 
         Notification::create([
             'type' => 'new_rider_application',
@@ -132,6 +149,35 @@ class RiderApplicationController extends Controller
         ]);
 
         return redirect()->route('rider-applications.create')->with('success', 'Application submitted successfully. We will review it shortly.');
+    }
+
+    /**
+     * Stream a supporting document inline (images / PDFs) for preview.
+     * Access is limited to authenticated Logistics staff and the file must
+     * belong to the given application.
+     */
+    public function viewDocument(RiderApplication $riderApplication, RiderApplicationDocument $document): \Symfony\Component\HttpFoundation\BinaryFileResponse
+    {
+        return $this->serveDocument($riderApplication, $document, 'inline');
+    }
+
+    /**
+     * Force a supporting document download.
+     */
+    public function downloadDocument(RiderApplication $riderApplication, RiderApplicationDocument $document): \Symfony\Component\HttpFoundation\BinaryFileResponse
+    {
+        return $this->serveDocument($riderApplication, $document, 'attachment');
+    }
+
+    private function serveDocument(RiderApplication $riderApplication, RiderApplicationDocument $document, string $disposition): \Symfony\Component\HttpFoundation\BinaryFileResponse
+    {
+        abort_unless($document->rider_application_id === $riderApplication->id, 404);
+        abort_unless($document->fileExists(), 404, 'Document file is missing.');
+
+        return response()->file($document->absolutePath(), [
+            'Content-Type' => $document->mime_type ?: 'application/octet-stream',
+            'Content-Disposition' => $disposition . '; filename="' . basename($document->original_filename) . '"',
+        ]);
     }
 
     public function approve(Request $request, RiderApplication $riderApplication): RedirectResponse

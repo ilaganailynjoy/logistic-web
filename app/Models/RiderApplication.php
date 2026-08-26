@@ -40,6 +40,11 @@ class RiderApplication extends Model
         return $this->hasMany(RiderApplicationLog::class)->latest();
     }
 
+    public function supportingDocuments(): HasMany
+    {
+        return $this->hasMany(RiderApplicationDocument::class)->orderBy('document_type');
+    }
+
     public function changer(): BelongsTo
     {
         return $this->belongsTo(User::class, 'changed_by');

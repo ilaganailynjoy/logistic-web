@@ -93,25 +93,22 @@
             </div>
 
             <div class="pt-2 border-t border-gray-100">
-                <p class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">Supporting Documents</p>
+                <p class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Supporting Documents</p>
+                <p class="text-xs text-gray-400 mb-3">Accepted: JPG, PNG, WEBP, PDF, DOC, DOCX — max 5 MB each. Documents marked * are required.</p>
 
-                <div class="mb-4">
-                    <label for="license_document" class="block text-sm font-medium text-gray-700 mb-1.5">Driver's License Photo <span class="text-red-500">*</span></label>
-                    <input type="file" name="license_document" id="license_document" accept=".jpg,.jpeg,.png,.pdf" required
-                           class="w-full text-sm text-gray-600 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-teal-light file:text-teal-dark hover:file:bg-teal-light/70">
-                    @error('license_document')
-                        <p class="mt-1.5 text-sm text-red-600">{{ $message }}</p>
-                    @enderror
-                </div>
-
-                <div>
-                    <label for="registration_document" class="block text-sm font-medium text-gray-700 mb-1.5">Vehicle Registration Document <span class="text-red-500">*</span></label>
-                    <input type="file" name="registration_document" id="registration_document" accept=".jpg,.jpeg,.png,.pdf" required
-                           class="w-full text-sm text-gray-600 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-teal-light file:text-teal-dark hover:file:bg-teal-light/70">
-                    @error('registration_document')
-                        <p class="mt-1.5 text-sm text-red-600">{{ $message }}</p>
-                    @enderror
-                </div>
+                @foreach(['valid_id' => ['Valid ID', true], 'drivers_license' => ["Driver's License Photo", true], 'vehicle_registration' => ['Vehicle Registration Document', true], 'proof_of_address' => ['Proof of Address', false], 'other' => ['Other Supporting Document', false]] as $slot => [$label, $required])
+                    <div class="mb-4">
+                        <label for="documents_{{ $slot }}" class="block text-sm font-medium text-gray-700 mb-1.5">
+                            {{ $label }} @if($required)<span class="text-red-500">*</span>@endif
+                        </label>
+                        <input type="file" name="documents[{{ $slot }}]" id="documents_{{ $slot }}" @if($required) required @endif
+                               accept=".jpg,.jpeg,.png,.webp,.pdf,.doc,.docx"
+                               class="w-full text-sm text-gray-600 file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-teal-light file:text-teal-dark hover:file:bg-teal-light/70">
+                        @error('documents.' . $slot)
+                            <p class="mt-1.5 text-sm text-red-600">{{ $message }}</p>
+                        @enderror
+                    </div>
+                @endforeach
             </div>
 
             <button type="submit" class="w-full bg-teal hover:bg-teal-dark text-white rounded-xl py-3 font-semibold transition">

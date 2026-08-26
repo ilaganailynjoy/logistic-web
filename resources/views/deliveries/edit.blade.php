@@ -96,6 +96,29 @@
                 </div>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
+                        <label for="package_type" class="block text-sm font-medium text-gray-700 mb-1">Package Type</label>
+                        <select name="package_type" id="package_type"
+                                class="w-full rounded-xl border-gray-300 shadow-sm focus:border-teal focus:ring-teal text-sm">
+                            <option value="">— Select type —</option>
+                            @foreach(['Document', 'Parcel', 'Fragile', 'Electronics', 'Groceries', 'Other'] as $type)
+                                <option value="{{ $type }}" @selected(old('package_type', $delivery->package_type) === $type)>{{ $type }}</option>
+                            @endforeach
+                        </select>
+                        @error('package_type')
+                            <p class="text-red-500 text-xs mt-1">{{ $message }}</p>
+                        @enderror
+                    </div>
+
+                    <div>
+                        <label for="package_description" class="block text-sm font-medium text-gray-700 mb-1">Package Description</label>
+                        <input type="text" name="package_description" id="package_description" value="{{ old('package_description', $delivery->package_description) }}" maxlength="500"
+                               class="w-full rounded-xl border-gray-300 shadow-sm focus:border-teal focus:ring-teal text-sm">
+                        @error('package_description')
+                            <p class="text-red-500 text-xs mt-1">{{ $message }}</p>
+                        @enderror
+                    </div>
+
+                    <div>
                         <label for="weight" class="block text-sm font-medium text-gray-700 mb-1">Weight (kg)</label>
                         <input type="number" name="weight" id="weight" value="{{ old('weight', $delivery->weight) }}" step="0.1" min="0"
                                class="w-full rounded-xl border-gray-300 shadow-sm focus:border-teal focus:ring-teal text-sm">
@@ -109,6 +132,36 @@
                         <textarea name="notes" id="notes" rows="3"
                                   class="w-full rounded-xl border-gray-300 shadow-sm focus:border-teal focus:ring-teal text-sm">{{ old('notes', $delivery->notes) }}</textarea>
                         @error('notes')
+                            <p class="text-red-500 text-xs mt-1">{{ $message }}</p>
+                        @enderror
+                    </div>
+                </div>
+            </div>
+
+            <div class="mt-8 pt-6 border-t border-gray-100">
+                <div class="flex items-center gap-2 mb-4">
+                    <div class="h-2 w-1 rounded-full bg-teal"></div>
+                    <h2 class="text-base font-semibold text-gray-900">Delivery Information</h2>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label for="estimated_delivery_at" class="block text-sm font-medium text-gray-700 mb-1">Preferred Delivery Date</label>
+                        <input type="datetime-local" name="estimated_delivery_at" id="estimated_delivery_at" value="{{ old('estimated_delivery_at', $delivery->estimated_delivery_at ? $delivery->estimated_delivery_at->format('Y-m-d\TH:i') : '') }}"
+                               class="w-full rounded-xl border-gray-300 shadow-sm focus:border-teal focus:ring-teal text-sm">
+                        @error('estimated_delivery_at')
+                            <p class="text-red-500 text-xs mt-1">{{ $message }}</p>
+                        @enderror
+                    </div>
+
+                    <div>
+                        <label for="priority" class="block text-sm font-medium text-gray-700 mb-1">Delivery Priority</label>
+                        <select name="priority" id="priority"
+                                class="w-full rounded-xl border-gray-300 shadow-sm focus:border-teal focus:ring-teal text-sm">
+                            @foreach(['normal' => 'Normal', 'high' => 'High', 'urgent' => 'Urgent'] as $value => $label)
+                                <option value="{{ $value }}" @selected(old('priority', $delivery->priority ?? 'normal') === $value)>{{ $label }}</option>
+                            @endforeach
+                        </select>
+                        @error('priority')
                             <p class="text-red-500 text-xs mt-1">{{ $message }}</p>
                         @enderror
                     </div>

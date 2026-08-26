@@ -195,9 +195,12 @@ class DeliveryController extends Controller
             'recipient_name' => 'required|string|max:255',
             'recipient_phone' => ['required', new PhilippinePhone],
             'recipient_address' => 'required|string|max:500',
+            'package_type' => 'nullable|in:Document,Parcel,Fragile,Electronics,Groceries,Other',
+            'package_description' => 'nullable|string|max:500',
             'weight' => 'nullable|numeric|min:0.01|max:5000',
             'notes' => 'nullable|string|max:1000',
-            'estimated_delivery_at' => 'nullable|date',
+            'estimated_delivery_at' => 'nullable|date|after_or_equal:today',
+            'priority' => 'nullable|in:normal,high,urgent',
         ]);
     }
 
@@ -206,6 +209,7 @@ class DeliveryController extends Controller
         $validated = $this->validateDelivery($request);
 
         $validated['status'] = 'waiting_for_rider';
+        $validated['priority'] = $validated['priority'] ?? 'normal';
         $validated['created_by'] = Auth::id();
 
         $delivery = DB::transaction(function () use ($validated) {

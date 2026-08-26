@@ -17,7 +17,14 @@
 
     @php $capacities = \App\Models\LogisticsSetting::vehicleCapacities(); @endphp
 
-    <div x-data="{ approveOpen: false, rejectOpen: false, revertOpen: false }" class="max-w-2xl">
+    <div x-data="{
+    approveOpen: false,
+    rejectOpen: false,
+    revertOpen: false,
+    viewer: null,
+    openViewer(doc) { this.viewer = doc; },
+    closeViewer() { this.viewer = null; }
+}" class="max-w-2xl">
         {{-- Application Info Card --}}
         <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 sm:p-8 mb-6">
             <h3 class="text-base font-bold text-gray-900 mb-5">Applicant Information</h3>
@@ -76,20 +83,61 @@
                 </div>
             @endif
 
-            @if($application->documents)
-                <div class="mt-6 p-4 bg-gray-50 rounded-xl">
-                    <p class="text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">Supporting Documents</p>
-                    <div class="flex flex-wrap gap-2">
-                        @foreach($application->documents as $key => $path)
-                            <a href="{{ asset($path) }}" target="_blank"
-                               class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-gray-200 hover:border-teal hover:text-teal-dark rounded-lg text-xs font-semibold text-gray-600 transition">
-                                <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
-                                {{ str_replace('_', ' ', Str::title($key)) }}
-                            </a>
-                        @endforeach
-                    </div>
+            @php
+                $requiredTypes = ['valid_id', 'drivers_license', 'vehicle_registration'];
+                $docsByType = $application->supportingDocuments->keyBy('document_type');
+            @endphp
+            <div class="mt-6 p-4 bg-gray-50 rounded-xl">
+                <p class="text-xs font-medium text-gray-500 uppercase tracking-wider mb-3">Supporting Documents</p>
+
+                <div class="space-y-2">
+                    @foreach(\App\Models\RiderApplicationDocument::TYPES as $type => $label)
+                        @php $doc = $docsByType->get($type); @endphp
+                        <div class="flex items-center gap-3 bg-white border border-gray-200 rounded-xl px-3 py-2.5">
+                            @if($doc && $doc->fileExists() && $doc->isImage())
+                                <img src="{{ route('rider-applications.documents.view', [$application, $doc]) }}"
+                                     alt="{{ $doc->typeLabel() }}"
+                                     class="h-11 w-11 rounded-lg object-cover flex-shrink-0 cursor-zoom-in border border-gray-100"
+                                     @click="openViewer(@js(['type' => 'image', 'url' => route('rider-applications.documents.view', [$application, $doc]), 'name' => $doc->original_filename, 'label' => $doc->typeLabel()]))">
+                            @else
+                                <div class="h-11 w-11 rounded-lg flex-shrink-0 flex items-center justify-center {{ $doc ? 'bg-teal-light text-teal-dark' : 'bg-gray-100 text-gray-300' }}">
+                                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                                </div>
+                            @endif
+
+                            <div class="min-w-0 flex-1">
+                                <p class="text-sm font-semibold text-gray-900 truncate">{{ $label }} @if(in_array($type, $requiredTypes))<span class="text-red-400">*</span>@endif</p>
+                                @if($doc && $doc->fileExists())
+                                    <p class="text-xs text-gray-500 truncate">{{ $doc->original_filename }}</p>
+                                    <p class="text-[11px] text-gray-400">{{ strtoupper(last(explode('/', (string) $doc->mime_type))) }} · {{ $doc->humanSize() }} · Uploaded {{ $doc->created_at->format('M d, Y h:i A') }}</p>
+                                @else
+                                    <p class="text-xs italic {{ $doc && !$doc->fileExists() ? 'text-amber-600' : 'text-gray-400' }}">
+                                        {{ $doc && !$doc->fileExists() ? 'File missing on server' : 'Not Submitted' }}
+                                    </p>
+                                @endif
+                            </div>
+
+                            @if($doc && $doc->fileExists())
+                                <div class="flex items-center gap-1.5 flex-shrink-0">
+                                    @if($doc->isImage() || $doc->isPdf())
+                                        <button type="button"
+                                                @click="openViewer(@js(['type' => $doc->isImage() ? 'image' : 'pdf', 'url' => route('rider-applications.documents.view', [$application, $doc]), 'name' => $doc->original_filename, 'label' => $doc->typeLabel()]))"
+                                                class="inline-flex items-center gap-1 px-2.5 py-1.5 bg-teal-light text-teal-dark hover:bg-teal hover:text-white rounded-lg text-xs font-semibold transition">
+                                            <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                                            View
+                                        </button>
+                                    @endif
+                                    <a href="{{ route('rider-applications.documents.download', [$application, $doc]) }}"
+                                       class="inline-flex items-center gap-1 px-2.5 py-1.5 bg-white border border-gray-200 hover:border-teal hover:text-teal-dark text-gray-600 rounded-lg text-xs font-semibold transition">
+                                        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                                        Download
+                                    </a>
+                                </div>
+                            @endif
+                        </div>
+                    @endforeach
                 </div>
-            @endif
+            </div>
         </div>
 
         {{-- Actions --}}
@@ -225,6 +273,46 @@
                     <button type="submit" class="px-5 py-2.5 bg-amber-500 hover:bg-amber-600 text-white text-sm font-bold rounded-xl transition">Confirm Return to Pending</button>
                 </div>
             </form>
+        </div>
+
+        {{-- Document Viewer Modal --}}
+        <div x-show="viewer" x-cloak class="fixed inset-0 z-[60] flex items-center justify-center p-4" x-transition.opacity @keydown.escape.window="closeViewer()">
+            <div class="absolute inset-0 bg-black/70" @click="closeViewer()"></div>
+            <div class="relative bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col" x-transition>
+                <template x-if="viewer">
+                    <div class="flex flex-col max-h-[90vh]">
+                        <div class="flex items-center justify-between px-5 py-3.5 border-b border-gray-100">
+                            <div class="min-w-0">
+                                <p class="text-sm font-bold text-gray-900 truncate" x-text="viewer.label"></p>
+                                <p class="text-xs text-gray-400 truncate" x-text="viewer.name"></p>
+                            </div>
+                            <div class="flex items-center gap-2 flex-shrink-0 ml-3">
+                                <a :href="viewer.url.replace('/view/', '/download/')"
+                                   class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-gray-200 hover:border-teal hover:text-teal-dark text-gray-600 rounded-lg text-xs font-semibold transition">
+                                    <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                                    Download
+                                </a>
+                                <button type="button" @click="closeViewer()"
+                                        class="p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition"
+                                        aria-label="Close document viewer">
+                                    <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="flex-1 overflow-auto bg-gray-900/95 rounded-b-2xl">
+                            <template x-if="viewer.type === 'image'">
+                                <div class="flex items-center justify-center p-4 min-h-[50vh]">
+                                    <img :src="viewer.url" :alt="viewer.label" class="max-w-full max-h-[75vh] object-contain rounded-lg shadow-lg">
+                                </div>
+                            </template>
+                            <template x-if="viewer.type === 'pdf'">
+                                <iframe :src="viewer.url" class="w-full h-[75vh]" title="PDF document viewer"></iframe>
+                            </template>
+                        </div>
+                    </div>
+                </template>
+            </div>
         </div>
     </div>
 </x-app-layout>

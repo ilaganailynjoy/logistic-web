@@ -149,7 +149,16 @@
                 <h3 class="text-sm font-semibold text-gray-700 uppercase tracking-wide">Package Details</h3>
             </div>
             <dl class="space-y-3">
+                <div><dt class="text-xs text-gray-500">Package Type</dt><dd class="text-sm font-medium text-gray-900">{{ $delivery->package_type ?? '—' }}</dd></div>
+                <div><dt class="text-xs text-gray-500">Description</dt><dd class="text-sm font-medium text-gray-900">{{ $delivery->package_description ?? '—' }}</dd></div>
                 <div><dt class="text-xs text-gray-500">Weight</dt><dd class="text-sm font-medium text-gray-900">{{ $delivery->weight ? $delivery->weight . ' kg' : '—' }}</dd></div>
+                <div>
+                    <dt class="text-xs text-gray-500">Priority</dt>
+                    <dd class="mt-0.5">
+                        @php $prio = $delivery->priority ?? 'normal'; @endphp
+                        <span class="inline-flex items-center px-2 py-0.5 text-xs font-semibold rounded-full {{ match($prio) { 'urgent' => 'bg-red-100 text-red-700', 'high' => 'bg-amber-100 text-amber-700', default => 'bg-gray-100 text-gray-600' } }}">{{ ucfirst($prio) }}</span>
+                    </dd>
+                </div>
                 <div><dt class="text-xs text-gray-500">Notes</dt><dd class="text-sm font-medium text-gray-900">{{ $delivery->notes ?? '—' }}</dd></div>
             </dl>
         </div>
