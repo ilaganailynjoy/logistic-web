@@ -16,6 +16,7 @@ class Conversation extends Model
 
     protected $fillable = [
         'order_id',
+        'rider_id',
         'participant_type',
         'participant_id',
         'participant_name',

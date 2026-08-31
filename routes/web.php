@@ -3,14 +3,17 @@
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DeliveryController;
 use App\Http\Controllers\RiderController;
-use App\Http\Controllers\RiderApplicationController;
 use App\Http\Controllers\TrackingController;
 use App\Http\Controllers\SettingController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\MessageController;
 use App\Http\Controllers\RiderMessageController;
-use App\Http\Controllers\VehicleTypeController;
+use App\Http\Controllers\StaffController;
+use App\Http\Controllers\LogisticsCenterController;
+use App\Http\Controllers\ServiceAreaController;
+use App\Http\Controllers\TransactionController;
+use App\Http\Controllers\ReportController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
@@ -22,32 +25,55 @@ Route::get('/dashboard', [DashboardController::class, 'index'])
     ->name('dashboard');
 
 Route::middleware(['auth', 'verified', 'staff'])->group(function () {
-    Route::resource('deliveries', DeliveryController::class);
+
+    // ── Deliveries ──────────────────────────────────────────
+    Route::resource('deliveries', DeliveryController::class)->except(['destroy']);
     Route::post('deliveries/{delivery}/assign-rider', [DeliveryController::class, 'assignRider'])->name('deliveries.assign-rider');
     Route::patch('deliveries/{delivery}/update-status', [DeliveryController::class, 'updateStatus'])->name('deliveries.update-status');
+    Route::post('deliveries/{delivery}/receive', [DeliveryController::class, 'receive'])->name('deliveries.receive');
+    Route::patch('deliveries/{delivery}/scan', [DeliveryController::class, 'scan'])->name('deliveries.scan');
+    Route::post('deliveries/{delivery}/sort', [DeliveryController::class, 'sort'])->name('deliveries.sort');
+
+    // ── Archived Deliveries (Admin Only) ────────────────────
+    Route::get('deliveries-archived', [DeliveryController::class, 'archived'])->name('deliveries.archived');
     Route::post('deliveries/{delivery}/archive', [DeliveryController::class, 'archive'])->name('deliveries.archive');
     Route::post('deliveries/{delivery}/restore', [DeliveryController::class, 'restore'])->name('deliveries.restore');
-    Route::get('deliveries-archived', [DeliveryController::class, 'archived'])->name('deliveries.archived');
+    Route::delete('deliveries/{delivery}', [DeliveryController::class, 'destroy'])->name('deliveries.destroy');
 
-    Route::resource('riders', RiderController::class);
-    Route::post('riders/{rider}/verify-vehicle', [RiderController::class, 'verifyVehicle'])->name('riders.verify-vehicle');
-    Route::post('riders/{rider}/reject-vehicle', [RiderController::class, 'rejectVehicle'])->name('riders.reject-vehicle');
+    // ── Riders (Read-Only Directory) ────────────────────────
+    Route::get('riders', [RiderController::class, 'index'])->name('riders.index');
+    Route::get('riders/{rider}', [RiderController::class, 'show'])->name('riders.show');
 
-    Route::get('vehicle-types', [VehicleTypeController::class, 'index'])->name('vehicle-types.index');
-    Route::post('vehicle-types', [VehicleTypeController::class, 'store'])->name('vehicle-types.store');
-    Route::put('vehicle-types/{vehicleType}', [VehicleTypeController::class, 'update'])->name('vehicle-types.update');
-    Route::post('vehicle-types/{vehicleType}/toggle', [VehicleTypeController::class, 'toggle'])->name('vehicle-types.toggle');
+    // ── Staff Management (Admin Only) ───────────────────────
+    Route::middleware('admin')->group(function () {
+        Route::resource('staff', StaffController::class)->except(['destroy']);
+        Route::post('staff/{staff}/activate', [StaffController::class, 'activate'])->name('staff.activate');
+        Route::delete('staff/{staff}', [StaffController::class, 'destroy'])->name('staff.destroy');
+    });
 
-    Route::resource('rider-applications', RiderApplicationController::class)->only(['index', 'show']);
-    Route::get('rider-applications/{riderApplication}/documents/{document}/view', [RiderApplicationController::class, 'viewDocument'])->name('rider-applications.documents.view');
-    Route::get('rider-applications/{riderApplication}/documents/{document}/download', [RiderApplicationController::class, 'downloadDocument'])->name('rider-applications.documents.download');
-    Route::post('rider-applications/{riderApplication}/approve', [RiderApplicationController::class, 'approve'])->name('rider-applications.approve');
-    Route::post('rider-applications/{riderApplication}/reject', [RiderApplicationController::class, 'reject'])->name('rider-applications.reject');
-    Route::post('rider-applications/{riderApplication}/revert', [RiderApplicationController::class, 'revertToPending'])->name('rider-applications.revert');
+    // ── Logistics Centers (Admin Only) ──────────────────────
+    Route::middleware('admin')->group(function () {
+        Route::resource('centers', LogisticsCenterController::class);
+        Route::post('centers/{center}/toggle', [LogisticsCenterController::class, 'toggle'])->name('centers.toggle');
+    });
 
+    // ── Service Areas (Admin Only) ──────────────────────────
+    Route::middleware('admin')->group(function () {
+        Route::resource('service-areas', ServiceAreaController::class);
+        Route::post('service-areas/{serviceArea}/toggle', [ServiceAreaController::class, 'toggle'])->name('service-areas.toggle');
+    });
+
+    // ── Tracking ────────────────────────────────────────────
     Route::get('tracking', [TrackingController::class, 'index'])->name('tracking.index');
     Route::get('tracking/search', [TrackingController::class, 'search'])->name('tracking.search');
 
+    // ── Transactions ────────────────────────────────────────
+    Route::get('transactions', [TransactionController::class, 'index'])->name('transactions.index');
+
+    // ── Reports ─────────────────────────────────────────────
+    Route::get('reports', [ReportController::class, 'index'])->name('reports.index');
+
+    // ── Settings ────────────────────────────────────────────
     Route::get('settings', [SettingController::class, 'index'])->name('settings.index');
     Route::put('settings/profile', [SettingController::class, 'updateProfile'])->name('settings.update-profile');
     Route::put('settings/password', [SettingController::class, 'updatePassword'])->name('settings.update-password');
@@ -55,10 +81,12 @@ Route::middleware(['auth', 'verified', 'staff'])->group(function () {
     Route::put('settings/notifications', [SettingController::class, 'updateNotifications'])->name('settings.update-notifications');
     Route::put('settings/delivery', [SettingController::class, 'updateDelivery'])->name('settings.update-delivery');
 
+    // ── Notifications ───────────────────────────────────────
     Route::get('notifications', [NotificationController::class, 'index'])->name('notifications.index');
     Route::patch('notifications/{notification}/read', [NotificationController::class, 'markRead'])->name('notifications.mark-read');
     Route::patch('notifications/read-all', [NotificationController::class, 'markAllRead'])->name('notifications.mark-all-read');
 
+    // ── Messages ────────────────────────────────────────────
     Route::get('messages', [MessageController::class, 'index'])->name('messages.index');
     Route::get('messages/poll', [MessageController::class, 'poll'])->name('messages.poll');
     Route::get('messages/{conversation}', [MessageController::class, 'show'])->name('messages.show');
@@ -69,16 +97,13 @@ Route::middleware(['auth', 'verified', 'staff'])->group(function () {
     Route::get('attachments/{attachment}/view', [MessageController::class, 'viewAttachment'])->name('messages.attachments.view');
     Route::get('attachments/{attachment}/download', [MessageController::class, 'downloadAttachment'])->name('messages.attachments.download');
 
+    // ── Profile ─────────────────────────────────────────────
     Route::get('profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 });
 
-Route::get('apply', [RiderApplicationController::class, 'create'])->name('rider-applications.create');
-Route::post('apply', [RiderApplicationController::class, 'store'])->name('rider-applications.store');
-
-// Rider messaging (riders authenticate through the Logistics login but only
-// access their own conversation — no Logistics dashboard access).
+// Rider messaging only (riders access via Logistics login, messaging only)
 Route::middleware(['auth', 'rider.web'])->group(function () {
     Route::get('rider/messages', [RiderMessageController::class, 'index'])->name('rider.messages');
     Route::get('rider/messages/poll', [RiderMessageController::class, 'poll'])->name('rider.messages.poll');

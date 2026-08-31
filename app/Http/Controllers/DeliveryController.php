@@ -7,6 +7,9 @@ use App\Models\DeliveryStatusLog;
 use App\Models\LogisticsSetting;
 use App\Models\Rider;
 use App\Models\Notification;
+use App\Models\LogisticsCenter;
+use App\Models\ServiceArea;
+use App\Models\Transaction;
 use App\Rules\PhilippinePhone;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -40,7 +43,8 @@ class DeliveryController extends Controller
               ->orWhereHas('rider', fn ($r) => $r->where('name', 'like', $like));
 
             if (ctype_digit($search)) {
-                $w->orWhere('order_id', (int) $search);
+                $w->orWhere('id', (int) $search)
+                  ->orWhere('order_id', (int) $search);
             }
         });
     }
@@ -54,18 +58,23 @@ class DeliveryController extends Controller
         $dateTo = trim((string) $request->query('date_to', ''));
         $riderId = (int) $request->query('rider_id', 0);
         $vehicle = trim((string) $request->query('vehicle_type', ''));
+        $centerId = (int) $request->query('center_id', 0);
+        $serviceAreaId = (int) $request->query('service_area_id', 0);
+        $priority = trim((string) $request->query('priority', ''));
 
-        $sortMap = [
-            'tracking_number' => 'tracking_number',
-            'sender' => 'sender_name',
-            'recipient' => 'recipient_name',
-            'status' => 'status',
-            'date' => 'created_at',
-        ];
-        $sort = $sortMap[(string) $request->query('sort', '')] ?? 'created_at';
         $dir = strtolower($request->query('dir', 'desc')) === 'asc' ? 'asc' : 'desc';
 
-        $query = Delivery::with('rider')->notArchived();
+        $query = Delivery::with(['rider', 'logisticsCenter', 'destinationCenter', 'serviceArea', 'transaction'])->notArchived();
+
+        $user = Auth::user();
+        $staffCenterId = null;
+
+        // Staff are always restricted to their assigned logistics center. This
+        // is enforced at the query level so a query parameter can never bypass it.
+        if ($user->isStaff() && $user->center_id) {
+            $staffCenterId = (int) $user->center_id;
+            $query->where('center_id', $staffCenterId);
+        }
 
         $this->applySearch($query, $search);
 
@@ -89,14 +98,20 @@ class DeliveryController extends Controller
             $query->whereHas('rider', fn ($r) => $r->whereRaw('LOWER(vehicle_type) = ?', [strtolower($vehicle)]));
         }
 
-        if ($request->query('sort') === 'rider') {
-            $query->leftJoin('riders', 'riders.id', '=', 'deliveries.rider_id')
-                  ->orderByRaw('CASE WHEN riders.name IS NULL THEN 1 ELSE 0 END')
-                  ->orderBy('riders.name', $dir)
-                  ->select('deliveries.*');
-        } else {
-            $query->orderBy($sort, $dir)->orderBy('id', $dir);
+        // Center filter is only applied for admins; staff are already scoped above.
+        if ($centerId > 0 && $user->isAdmin()) {
+            $query->where('center_id', $centerId);
         }
+
+        if ($serviceAreaId > 0) {
+            $query->where('service_area_id', $serviceAreaId);
+        }
+
+        if ($priority !== '' && in_array($priority, ['normal', 'high', 'urgent'])) {
+            $query->where('priority', $priority);
+        }
+
+        $this->applySort($query, (string) $request->query('sort', ''), $dir);
 
         $deliveries = $query->paginate($perPage)->withQueryString();
 
@@ -105,28 +120,73 @@ class DeliveryController extends Controller
             'archivedCount' => Delivery::whereNotNull('archived_at')->count(),
             'filterRiders' => Rider::orderBy('name')->get(['id', 'name']),
             'vehicleTypes' => array_keys(config('logistics.vehicle_capacities')),
+            'filterCenters' => LogisticsCenter::orderBy('name')->get(['id', 'name']),
+            'filterServiceAreas' => ServiceArea::orderBy('name')->get(['id', 'name', 'logistics_center_id']),
+            'filterPriorities' => ['normal', 'high', 'urgent'],
+            'staffCenterId' => $staffCenterId,
         ]);
     }
 
-    public function archived(Request $request): View
+    /**
+     * Apply the requested ordering. Column-based sorts use a whitelist; relation
+     * sorts use a single LEFT JOIN (each is 1:1 on deliveries, so no rows are
+     * duplicated) followed by a select('deliveries.*') to keep only delivery data.
+     */
+    private function applySort($query, string $sortKey, string $dir): void
     {
-        $perPage = $this->perPage($request);
-        $search = trim((string) $request->query('search', ''));
-        $status = trim((string) $request->query('status', ''));
+        $dir = strtolower($dir) === 'asc' ? 'asc' : 'desc';
 
-        $query = Delivery::with(['rider', 'archiver'])->whereNotNull('archived_at');
+        switch ($sortKey) {
+            case 'rider':
+                $query->leftJoin('riders', 'riders.id', '=', 'deliveries.rider_id')
+                      ->orderByRaw('CASE WHEN riders.name IS NULL THEN 1 ELSE 0 END')
+                      ->orderBy('riders.name', $dir)
+                      ->select('deliveries.*');
+                break;
 
-        $this->applySearch($query, $search);
+            case 'center':
+                $query->leftJoin('logistics_centers', 'logistics_centers.id', '=', 'deliveries.center_id')
+                      ->orderByRaw('CASE WHEN logistics_centers.name IS NULL THEN 1 ELSE 0 END')
+                      ->orderBy('logistics_centers.name', $dir)
+                      ->select('deliveries.*');
+                break;
 
-        if ($status !== '') {
-            $query->where('status', $status);
+            case 'destination':
+                $query->leftJoin('logistics_centers as dest_centers', 'dest_centers.id', '=', 'deliveries.destination_center_id')
+                      ->orderByRaw('CASE WHEN dest_centers.name IS NULL THEN 1 ELSE 0 END')
+                      ->orderBy('dest_centers.name', $dir)
+                      ->select('deliveries.*');
+                break;
+
+            case 'service_area':
+                $query->leftJoin('service_areas', 'service_areas.id', '=', 'deliveries.service_area_id')
+                      ->orderByRaw('CASE WHEN service_areas.name IS NULL THEN 1 ELSE 0 END')
+                      ->orderBy('service_areas.name', $dir)
+                      ->select('deliveries.*');
+                break;
+
+            case 'amount':
+                // Delivery->transaction is 1:1 (unique constraint on
+                // transactions.delivery_id), so this join cannot duplicate rows.
+                $query->leftJoin('transactions', 'transactions.delivery_id', '=', 'deliveries.id')
+                      ->orderByRaw('CASE WHEN transactions.amount IS NULL THEN 1 ELSE 0 END')
+                      ->orderBy('transactions.amount', $dir)
+                      ->select('deliveries.*');
+                break;
+
+            default:
+                $column = match ($sortKey) {
+                    'tracking_number' => 'tracking_number',
+                    'sender' => 'sender_name',
+                    'recipient' => 'recipient_name',
+                    'status' => 'status',
+                    'date' => 'created_at',
+                    'priority' => 'priority',
+                    default => 'created_at',
+                };
+                $query->orderBy($column, $dir)->orderBy('id', $dir);
+                break;
         }
-
-        $deliveries = $query->orderByDesc('archived_at')->paginate($perPage)->withQueryString();
-
-        return view('deliveries.archived', [
-            'deliveries' => $deliveries,
-        ]);
     }
 
     public function show(Delivery $delivery): View
@@ -178,6 +238,8 @@ class DeliveryController extends Controller
             'failureReasons' => config('logistics.failure_reasons'),
             'cancellationReasons' => config('logistics.cancellation_reasons'),
             'transitions' => config('logistics.transitions'),
+            'centers' => LogisticsCenter::orderBy('name')->get(),
+            'serviceAreas' => ServiceArea::orderBy('name')->get(),
         ]);
     }
 
@@ -415,6 +477,10 @@ class DeliveryController extends Controller
 
         $this->syncRiderStatus($rider);
 
+        if ($target === 'delivered') {
+            app(TransactionController::class)->storeForDelivery($delivery);
+        }
+
         $riderName = $rider->name ?? 'Rider';
         $statusMessages = [
             'picked_up' => ['Rider Picked Up Order', "{$riderName} has picked up Order #{$delivery->id} from sender.", '📍', 'normal'],
@@ -460,6 +526,10 @@ class DeliveryController extends Controller
 
     public function archive(Request $request, Delivery $delivery): RedirectResponse
     {
+        if (!Auth::user()->isAdmin()) {
+            abort(403, 'Only administrators can archive deliveries.');
+        }
+
         $validated = $request->validate([
             'archive_note' => 'nullable|string|max:255',
         ]);
@@ -486,6 +556,10 @@ class DeliveryController extends Controller
 
     public function restore(Request $request, Delivery $delivery): RedirectResponse
     {
+        if (!Auth::user()->isAdmin()) {
+            abort(403, 'Only administrators can restore deliveries.');
+        }
+
         if (!$delivery->archived_at) {
             return back()->with('error', 'This delivery is not archived.');
         }
@@ -509,11 +583,126 @@ class DeliveryController extends Controller
     public function destroy(Delivery $delivery): RedirectResponse
     {
         if (!Auth::user()->can('permanentlyDelete')) {
-            abort(403, 'Only super administrators can permanently delete deliveries. Archive it instead.');
+            abort(403, 'Only administrators can permanently delete deliveries. Archive it instead.');
         }
 
         $delivery->delete();
 
         return redirect()->route('deliveries.archived')->with('success', 'Delivery permanently deleted.');
+    }
+
+    public function receive(Request $request, Delivery $delivery): RedirectResponse
+    {
+        $validated = $request->validate([
+            'center_id' => 'required|exists:logistics_centers,id',
+        ]);
+
+        if ($delivery->parcel_status !== 'pending_arrival') {
+            return back()->with('error', 'This parcel has already been received.');
+        }
+
+        $user = Auth::user();
+        if ($user->isStaff() && $user->center_id != $validated['center_id']) {
+            abort(403, 'You can only receive parcels at your assigned logistics center.');
+        }
+
+        $delivery->update([
+            'center_id' => $validated['center_id'],
+            'parcel_status' => 'received',
+            'received_at' => now(),
+        ]);
+
+        DeliveryStatusLog::create([
+            'delivery_id' => $delivery->id,
+            'status' => 'received',
+            'notes' => 'Parcel received at logistics center.',
+            'changed_by' => Auth::id(),
+        ]);
+
+        return redirect()->back()->with('success', 'Parcel received and logged.');
+    }
+
+    public function scan(Delivery $delivery): RedirectResponse
+    {
+        if ($delivery->parcel_status !== 'received') {
+            return back()->with('error', 'Parcel must be received before scanning.');
+        }
+
+        $user = Auth::user();
+        if ($user->isStaff() && $user->center_id && $delivery->center_id != $user->center_id) {
+            abort(403, 'You can only scan parcels at your assigned logistics center.');
+        }
+
+        $delivery->update([
+            'parcel_status' => 'scanned',
+            'scanned_at' => now(),
+        ]);
+
+        DeliveryStatusLog::create([
+            'delivery_id' => $delivery->id,
+            'status' => 'scanned',
+            'notes' => 'Parcel scanned and verified.',
+            'changed_by' => Auth::id(),
+        ]);
+
+        return redirect()->back()->with('success', 'Parcel scanned successfully.');
+    }
+
+    public function sort(Request $request, Delivery $delivery): RedirectResponse
+    {
+        $validated = $request->validate([
+            'destination_center_id' => 'required|exists:logistics_centers,id',
+            'service_area_id' => 'required|exists:service_areas,id',
+        ]);
+
+        if (!in_array($delivery->parcel_status, ['received', 'scanned'])) {
+            return back()->with('error', 'Parcel must be received and scanned before sorting.');
+        }
+
+        $user = Auth::user();
+        if ($user->isStaff() && $user->center_id && $delivery->center_id != $user->center_id) {
+            abort(403, 'You can only sort parcels at your assigned logistics center.');
+        }
+
+        $delivery->update([
+            'destination_center_id' => $validated['destination_center_id'],
+            'service_area_id' => $validated['service_area_id'],
+            'parcel_status' => 'sorted',
+            'sorted_at' => now(),
+        ]);
+
+        DeliveryStatusLog::create([
+            'delivery_id' => $delivery->id,
+            'status' => 'sorted',
+            'notes' => 'Parcel sorted. Destination: ' . LogisticsCenter::find($validated['destination_center_id'])->name . '.',
+            'changed_by' => Auth::id(),
+        ]);
+
+        return redirect()->back()->with('success', 'Parcel sorted successfully.');
+    }
+
+    public function archived(Request $request): View
+    {
+        if (!Auth::user()->isAdmin()) {
+            abort(403, 'Only administrators can access archived deliveries.');
+        }
+
+        $perPage = $this->perPage($request);
+        $search = trim((string) $request->query('search', ''));
+        $status = trim((string) $request->query('status', ''));
+
+        $query = Delivery::with(['rider', 'archiver'])->whereNotNull('archived_at');
+
+        $this->applySearch($query, $search);
+
+        if ($status !== '') {
+            $query->where('status', $status);
+        }
+
+        $deliveries = $query->orderByDesc('archived_at')->paginate($perPage)->withQueryString();
+
+        return view('deliveries.archived', [
+            'deliveries' => $deliveries,
+        ]);
     }
 }

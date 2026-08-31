@@ -12,7 +12,7 @@
             ['label' => 'Cancelled', 'status' => 'cancelled'],
         ];
         $tabUrl = fn ($status) => route('deliveries.index', collect(request()->query())->except('page')->merge(['status' => $status])->filter(fn ($v) => $v !== null && $v !== '')->all());
-        $hasFilters = trim((string) request('search')) !== '' || $currentStatus || request('date_from') || request('date_to') || request('rider_id') || request('vehicle_type');
+        $hasFilters = trim((string) request('search')) !== '' || $currentStatus || request('date_from') || request('date_to') || request('rider_id') || request('vehicle_type') || request('center_id') || request('service_area_id') || request('priority');
     @endphp
 
     <div x-data="{ archiveOpen: false, archiveUrl: '' }" class="space-y-6">
@@ -59,7 +59,7 @@
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                     </svg>
                 </span>
-                <input type="text" name="search" value="{{ request('search') }}" placeholder="Search tracking #, sender, recipient, rider, phone, or address..."
+                <input type="text" name="search" value="{{ request('search') }}" placeholder="Search ID, order #, tracking #, sender, recipient, rider, phone, or address..."
                        class="w-full bg-white border border-gray-200 rounded-xl pl-10 pr-4 py-2 text-sm focus:border-teal focus:ring-teal shadow-sm placeholder-gray-400">
             </div>
 
@@ -82,6 +82,32 @@
                 <option value="">All vehicles</option>
                 @foreach($vehicleTypes as $vt)
                     <option value="{{ $vt }}" {{ request('vehicle_type') === $vt ? 'selected' : '' }}>{{ ucfirst($vt) }}</option>
+                @endforeach
+            </select>
+
+            @if(Auth::user()->isAdmin())
+                <select name="center_id" title="Filter by logistics center"
+                        class="bg-white border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-600 focus:border-teal focus:ring-teal shadow-sm max-w-[200px]">
+                    <option value="">All centers</option>
+                    @foreach($filterCenters as $c)
+                        <option value="{{ $c->id }}" {{ (int) request('center_id') === $c->id ? 'selected' : '' }}>{{ $c->name }}</option>
+                    @endforeach
+                </select>
+            @endif
+
+            <select name="service_area_id" title="Filter by service area"
+                    class="bg-white border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-600 focus:border-teal focus:ring-teal shadow-sm max-w-[200px]">
+                <option value="">All service areas</option>
+                @foreach($filterServiceAreas as $sa)
+                    <option value="{{ $sa->id }}" {{ (int) request('service_area_id') === $sa->id ? 'selected' : '' }}>{{ $sa->name }}</option>
+                @endforeach
+            </select>
+
+            <select name="priority" title="Filter by priority"
+                    class="bg-white border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-600 focus:border-teal focus:ring-teal shadow-sm">
+                <option value="">All priorities</option>
+                @foreach($filterPriorities as $p)
+                    <option value="{{ $p }}" {{ request('priority') === $p ? 'selected' : '' }}>{{ ucfirst($p) }}</option>
                 @endforeach
             </select>
 
@@ -108,6 +134,11 @@
                         <x-th-sort field="sender" label="Sender"/>
                         <x-th-sort field="recipient" label="Recipient"/>
                         <x-th-sort field="rider" label="Rider"/>
+                        <x-th-sort field="destination" label="Destination"/>
+                        <x-th-sort field="service_area" label="Service Area"/>
+                        <x-th-sort field="center" label="Center"/>
+                        <x-th-sort field="priority" label="Priority"/>
+                        <x-th-sort field="amount" label="Amount"/>
                         <x-th-sort field="status" label="Status"/>
                         <x-th-sort field="date" label="Date"/>
                         <th class="px-6 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Actions</th>
@@ -132,6 +163,28 @@
                                     <span class="inline-flex items-center px-2 py-0.5 text-xs font-semibold rounded-full bg-gray-100 text-gray-500 ring-1 ring-inset ring-gray-200">Unassigned</span>
                                 @endif
                             </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                {{ $delivery->destinationCenter?->name ?? '—' }}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                {{ $delivery->serviceArea?->name ?? '—' }}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                {{ $delivery->logisticsCenter?->name ?? '—' }}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                @php $prio = $delivery->priority ?? 'normal'; @endphp
+                                <span class="inline-flex items-center px-2.5 py-1 text-xs font-semibold rounded-full {{ $prio === 'urgent' ? 'bg-red-50 text-red-700 ring-1 ring-inset ring-red-200' : ($prio === 'high' ? 'bg-amber-50 text-amber-700 ring-1 ring-inset ring-amber-200' : 'bg-gray-100 text-gray-600 ring-1 ring-inset ring-gray-200') }}">
+                                    {{ ucfirst($prio) }}
+                                </span>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                @if($delivery->transaction)
+                                    ₱{{ number_format((float) $delivery->transaction->amount, 2) }}
+                                @else
+                                    <span class="text-gray-400">—</span>
+                                @endif
+                            </td>
                             <td class="px-6 py-4 whitespace-nowrap">
                                 <x-status-badge :status="$delivery->status" />
                             </td>
@@ -151,7 +204,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="7" class="px-6 py-16 text-center">
+                            <td colspan="12" class="px-6 py-16 text-center">
                                 <div class="flex flex-col items-center justify-center text-gray-400">
                                     <svg class="h-16 w-16 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />

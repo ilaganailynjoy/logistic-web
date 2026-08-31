@@ -108,17 +108,6 @@
                 </div>
             </a>
 
-            <a href="{{ route('rider-applications.index', ['status' => 'pending']) }}" class="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 flex items-center gap-4 hover:shadow-lg hover:border-teal/30 transition-all duration-200">
-                <div class="flex-shrink-0 w-12 h-12 rounded-xl bg-teal-light text-teal-dark flex items-center justify-center">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
-                </div>
-                <div class="min-w-0">
-                    <p class="text-sm font-medium text-gray-500 truncate">Pending Applications</p>
-                    <p class="mt-0.5 text-2xl font-bold text-gray-900">{{ $pending_applications }}</p>
-                    <p class="text-xs font-medium text-teal-dark mt-0.5">Review needed →</p>
-                </div>
-            </a>
-
             <a href="{{ route('deliveries.index', ['status' => 'failed']) }}" class="bg-white rounded-2xl border {{ $failed > 0 ? 'border-red-200 ring-1 ring-red-100' : 'border-gray-100' }} shadow-sm p-5 flex items-center gap-4 hover:shadow-lg hover:border-red-300 transition-all duration-200">
                 <div class="flex-shrink-0 w-12 h-12 rounded-xl {{ $failed > 0 ? 'bg-red-100 text-red-600 animate-pulse' : 'bg-red-50 text-red-400' }} flex items-center justify-center">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
@@ -181,7 +170,7 @@
         {{-- Content grid --}}
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
             {{-- Recent Deliveries --}}
-            <div class="lg:col-span-2 bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+            <div class="lg:col-span-3 bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
                 <div class="flex items-center justify-between px-5 sm:px-6 py-4 border-b border-gray-100">
                     <h3 class="text-base font-semibold text-gray-900">Recent Deliveries</h3>
                     <a href="{{ route('deliveries.index') }}" class="text-sm font-semibold text-teal hover:text-teal-dark transition">
@@ -245,36 +234,6 @@
                 </div>
             </div>
 
-            {{-- Recent Applications --}}
-            <div class="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-                <div class="flex items-center justify-between px-5 sm:px-6 py-4 border-b border-gray-100">
-                    <h3 class="text-base font-semibold text-gray-900">Recent Applications</h3>
-                    <a href="{{ route('rider-applications.index') }}" class="text-sm font-semibold text-teal hover:text-teal-dark transition">
-                        View All →
-                    </a>
-                </div>
-
-                @forelse ($recent_applications as $application)
-                    <a href="{{ route('rider-applications.show', $application) }}" class="flex items-center gap-3 px-5 sm:px-6 py-4 {{ !$loop->last ? 'border-b border-gray-100' : '' }} hover:bg-gray-50 transition-colors duration-150">
-                        <div class="flex-shrink-0 w-10 h-10 rounded-full bg-teal-light text-teal-dark font-bold text-sm flex items-center justify-center">
-                            {{ strtoupper(substr($application->name, 0, 1)) }}
-                        </div>
-                        <div class="min-w-0 flex-1">
-                            <p class="text-sm font-semibold text-gray-900 truncate">{{ $application->name }}</p>
-                            <p class="text-xs text-gray-500 truncate">{{ $application->email }} · {{ $application->created_at->format('M d, Y') }}</p>
-                        </div>
-                        <x-status-badge :status="$application->status" />
-                    </a>
-                @empty
-                    <div class="flex flex-col items-center text-center px-5 py-12">
-                        <div class="w-14 h-14 rounded-2xl bg-gray-100 text-gray-400 flex items-center justify-center mb-3">
-                            <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
-                        </div>
-                        <p class="text-sm font-semibold text-gray-700">No applications yet</p>
-                        <p class="text-sm text-gray-500 mt-1">Rider applications will appear here.</p>
-                    </div>
-                @endforelse
-            </div>
         </div>
     </div>
 </x-app-layout>

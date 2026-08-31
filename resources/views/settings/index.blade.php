@@ -264,13 +264,6 @@
                             <div class="w-11 h-6 bg-gray-200 rounded-full peer peer-checked:bg-teal after:content-[''] after:absolute after:top-0.5 after:left-0.5 after:bg-white after:rounded-full after:h-5 after:w-5 after:shadow after:transition-all peer-checked:after:translate-x-5"></div>
                         </label>
                     </li>
-                    <li class="px-6 py-4 flex items-center justify-between gap-4">
-                        <div>
-                            <p class="text-sm font-semibold text-gray-900">Vehicle Capacity Limits</p>
-                            <p class="text-xs text-gray-500 mt-0.5">Managed centrally under Vehicle Types in the sidebar.</p>
-                        </div>
-                        <a href="{{ route('vehicle-types.index') }}" class="text-sm font-semibold text-teal hover:text-teal-dark whitespace-nowrap">Open Vehicle Types →</a>
-                    </li>
                 </ul>
 
                 <div class="px-6 py-4 border-t border-gray-100 flex justify-end">

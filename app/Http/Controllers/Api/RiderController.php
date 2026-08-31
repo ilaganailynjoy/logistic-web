@@ -166,6 +166,20 @@ class RiderController extends Controller
             'order_id' => $delivery->order_id,
             'status' => $delivery->status,
             'status_label' => $this->statusLabel($delivery->status),
+            'parcel_status' => $delivery->parcel_status,
+            'delivery_instructions' => $delivery->notes ?? $delivery->delivery_notes,
+            'logistics_center' => $delivery->logisticsCenter ? [
+                'id' => $delivery->logisticsCenter->id,
+                'name' => $delivery->logisticsCenter->name,
+            ] : null,
+            'destination_center' => $delivery->destinationCenter ? [
+                'id' => $delivery->destinationCenter->id,
+                'name' => $delivery->destinationCenter->name,
+            ] : null,
+            'service_area' => $delivery->serviceArea ? [
+                'id' => $delivery->serviceArea->id,
+                'name' => $delivery->serviceArea->name,
+            ] : null,
             'shop' => [
                 'name' => $delivery->sender_name,
                 'phone' => $delivery->sender_phone,

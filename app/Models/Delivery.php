@@ -18,6 +18,9 @@ class Delivery extends Model
         'tracking_number',
         'order_id',
         'rider_id',
+        'center_id',
+        'destination_center_id',
+        'service_area_id',
         'sender_name',
         'sender_phone',
         'sender_address',
@@ -29,6 +32,7 @@ class Delivery extends Model
         'recipient_lat',
         'recipient_lng',
         'status',
+        'parcel_status',
         'weight',
         'notes',
         'package_type',
@@ -46,12 +50,17 @@ class Delivery extends Model
         'cancelled_at',
         'failed_at',
         'failure_reason',
+        'returned_at',
+        'return_reason',
         'cancellation_reason',
         'created_by',
         'archived_at',
         'archived_by',
         'archive_note',
         'delivery_notes',
+        'received_at',
+        'scanned_at',
+        'sorted_at',
     ];
 
     protected function casts(): array
@@ -71,7 +80,11 @@ class Delivery extends Model
             'delivered_at' => 'datetime',
             'cancelled_at' => 'datetime',
             'failed_at' => 'datetime',
+            'returned_at' => 'datetime',
             'archived_at' => 'datetime',
+            'received_at' => 'datetime',
+            'scanned_at' => 'datetime',
+            'sorted_at' => 'datetime',
         ];
     }
 
@@ -133,6 +146,26 @@ class Delivery extends Model
     public function earnings(): HasMany
     {
         return $this->hasMany(RiderEarning::class);
+    }
+
+    public function logisticsCenter()
+    {
+        return $this->belongsTo(LogisticsCenter::class, 'center_id');
+    }
+
+    public function destinationCenter()
+    {
+        return $this->belongsTo(LogisticsCenter::class, 'destination_center_id');
+    }
+
+    public function serviceArea()
+    {
+        return $this->belongsTo(ServiceArea::class, 'service_area_id');
+    }
+
+    public function transaction()
+    {
+        return $this->hasOne(Transaction::class);
     }
 
     public function scopeNotArchived($query)

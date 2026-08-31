@@ -9,18 +9,15 @@ abstract class TestCase extends BaseTestCase
 {
     use DatabaseTransactions;
 
-    private static bool $schemaLoaded = false;
-
     /**
-     * Bootstrap the MySQL test schema once, BEFORE Laravel begins the
-     * per-test transaction (DDL would otherwise commit mid-transaction).
+     * Bootstrap the MySQL test schema (idempotent) BEFORE Laravel begins the
+     * per-test transaction (DDL would otherwise commit mid-transaction). The
+     * presence check runs on every setUp so the schema self-heals even when a
+     * sibling suite (e.g. RefreshDatabase) wipes the shared test DB mid-run.
      */
     protected function setUp(): void
     {
-        if (! self::$schemaLoaded) {
-            $this->loadSchemaViaRawPdo();
-            self::$schemaLoaded = true;
-        }
+        $this->loadSchemaViaRawPdo();
 
         parent::setUp();
     }
@@ -39,9 +36,7 @@ abstract class TestCase extends BaseTestCase
             $password
         );
 
-        $hasUsers = $pdo->query('SHOW TABLES LIKE "users"')->fetch();
-
-        if ($hasUsers) {
+        if ($this->schemaPresent($pdo)) {
             return;
         }
 
@@ -52,6 +47,18 @@ abstract class TestCase extends BaseTestCase
         }
 
         $sql = file_get_contents($schemaFile);
+
+        // Rebuild cleanly: some test suites (e.g. RefreshDatabase) run
+        // `migrate:fresh` which wipes the shared test database and recreates
+        // only framework tables. Drop whatever remains so the full canonical
+        // schema (users, riders, logistics_centers, deliveries, ...) is
+        // restored deterministically via the single source of truth.
+        preg_match_all('/CREATE TABLE\s+`?([a-zA-Z0-9_]+)`?/i', $sql, $matches);
+        $tables = array_unique($matches[1] ?? []);
+        foreach ($tables as $table) {
+            $pdo->exec("DROP TABLE IF EXISTS `{$table}`");
+        }
+
         $statements = array_filter(array_map('trim', explode(";\n", $sql)));
 
         foreach ($statements as $statement) {
@@ -59,5 +66,19 @@ abstract class TestCase extends BaseTestCase
                 $pdo->exec($statement);
             }
         }
+    }
+
+    private function schemaPresent(\PDO $pdo): bool
+    {
+        // Guard on a representative custom table. A framework `users` table
+        // (or one recreated by a partial migration) is not sufficient — the
+        // Logistics/Rider schema depends on riders, logistics_centers, etc.
+        foreach (['riders', 'logistics_centers', 'deliveries'] as $table) {
+            if (! $pdo->query("SHOW TABLES LIKE \"{$table}\"")->fetch()) {
+                return false;
+            }
+        }
+
+        return true;
     }
 }

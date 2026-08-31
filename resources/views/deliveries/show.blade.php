@@ -194,6 +194,129 @@
         </div>
     </div>
 
+    {{-- Parcel Processing (Receive -> Scan -> Sort) --}}
+    <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-6">
+        <div class="flex items-center gap-2 mb-5">
+            <div class="h-2 w-1 rounded-full bg-teal"></div>
+            <h2 class="text-lg font-semibold text-gray-900">Parcel Processing</h2>
+            <span class="inline-flex items-center px-2.5 py-0.5 text-xs font-semibold rounded-full bg-teal-light text-teal-dark">
+                {{ ucwords(str_replace('_', ' ', $delivery->parcel_status ?? 'pending_arrival')) }}
+            </span>
+        </div>
+
+        @php
+            $parcelSteps = [
+                'pending_arrival' => ['label' => 'Pending Arrival', 'index' => 0],
+                'received'        => ['label' => 'Received', 'index' => 1],
+                'scanned'         => ['label' => 'Scanned', 'index' => 2],
+                'sorted'          => ['label' => 'Sorted', 'index' => 3],
+            ];
+            $currentParcelIndex = $parcelSteps[$delivery->parcel_status ?? 'pending_arrival']['index'];
+        @endphp
+
+        <div class="relative mb-6">
+            <div class="absolute top-5 left-8 right-8 h-1 bg-gray-200 rounded-full"></div>
+            <div class="absolute top-5 left-8 h-1 bg-teal rounded-full transition-all duration-700" style="width: {{ ($currentParcelIndex / 3) * 100 }}%"></div>
+            <div class="relative flex justify-between">
+                @foreach($parcelSteps as $key => $step)
+                    @php
+                        $done = $currentParcelIndex > $step['index'];
+                        $current = $currentParcelIndex === $step['index'];
+                    @endphp
+                    <div class="flex flex-col items-center flex-1 text-center">
+                        <div class="relative flex items-center justify-center">
+                            <div class="h-10 w-10 rounded-full flex items-center justify-center {{ $done ? 'bg-teal text-white' : ($current ? 'bg-teal text-white shadow-lg shadow-teal/30' : 'bg-gray-200 text-gray-400') }}">
+                                @if($done)
+                                    <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+                                @else
+                                    <span class="h-3 w-3 rounded-full {{ $current ? 'bg-white' : 'bg-gray-400' }}"></span>
+                                @endif
+                            </div>
+                        </div>
+                        <p class="mt-3 text-xs font-medium {{ $current ? 'text-teal-dark' : ($done ? 'text-teal' : 'text-gray-400') }}">{{ $step['label'] }}</p>
+                    </div>
+                @endforeach
+            </div>
+        </div>
+
+        @if(!$delivery->archived_at)
+            <div class="flex flex-wrap gap-3">
+                @if(in_array($delivery->parcel_status, ['pending_arrival', null]))
+                    <form action="{{ route('deliveries.receive', $delivery) }}" method="POST" class="w-full max-w-xl">
+                        @csrf
+                        <label for="receive_center_id" class="block text-sm font-medium text-gray-700 mb-1">Receive at Logistics Center</label>
+                        <div class="flex flex-col sm:flex-row gap-2">
+                            <select name="center_id" id="receive_center_id" required
+                                    class="flex-1 rounded-xl border-gray-300 focus:border-teal focus:ring-teal text-sm">
+                                <option value="">— Select center —</option>
+                                @foreach($centers as $center)
+                                    <option value="{{ $center->id }}" @selected($delivery->center_id === $center->id)>{{ $center->name }}</option>
+                                @endforeach
+                            </select>
+                            <button type="submit" class="bg-teal hover:bg-teal-dark text-white font-semibold py-2 px-5 rounded-xl transition shadow-sm text-sm whitespace-nowrap">
+                                Mark as Received
+                            </button>
+                        </div>
+                        <p class="mt-1 text-xs text-gray-500">Log the parcel arriving at the handling logistics center.</p>
+                    </form>
+                @endif
+
+                @if($delivery->parcel_status === 'received')
+                    <form action="{{ route('deliveries.scan', $delivery) }}" method="POST">
+                        @csrf
+                        @method('PATCH')
+                        <button type="submit" class="bg-indigo-500 hover:bg-indigo-600 text-white font-semibold px-5 py-2.5 rounded-xl transition shadow-sm text-sm">
+                            Scan &amp; Verify Parcel
+                        </button>
+                    </form>
+                @endif
+
+                @if(in_array($delivery->parcel_status, ['received', 'scanned']))
+                    <form action="{{ route('deliveries.sort', $delivery) }}" method="POST" class="w-full">
+                        @csrf
+                        <fieldset class="grid grid-cols-1 md:grid-cols-2 gap-4 bg-gray-50 rounded-xl p-4">
+                            <legend class="text-sm font-medium text-gray-700 px-2">Sort to Destination</legend>
+                            <div>
+                                <label for="destination_center" class="block text-sm font-medium text-gray-700 mb-1">Destination Center</label>
+                                <select name="destination_center_id" id="destination_center" required
+                                        class="w-full rounded-xl border-gray-300 focus:border-teal focus:ring-teal text-sm">
+                                    <option value="">— Select destination —</option>
+                                    @foreach($centers as $center)
+                                        <option value="{{ $center->id }}" @selected($delivery->destination_center_id === $center->id)>{{ $center->name }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div>
+                                <label for="service_area" class="block text-sm font-medium text-gray-700 mb-1">Service Area</label>
+                                <select name="service_area_id" id="service_area" required
+                                        class="w-full rounded-xl border-gray-300 focus:border-teal focus:ring-teal text-sm">
+                                    <option value="">— Select service area —</option>
+                                    @foreach($serviceAreas as $area)
+                                        <option value="{{ $area->id }}" @selected($delivery->service_area_id === $area->id)>{{ $area->name }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <button type="submit" class="md:col-span-2 bg-purple-500 hover:bg-purple-600 text-white font-semibold py-2.5 px-5 rounded-xl transition shadow-sm text-sm">
+                                Mark as Sorted
+                            </button>
+                        </fieldset>
+                    </form>
+                @endif
+
+                @if(in_array($delivery->parcel_status, ['received', 'scanned', 'sorted']) && $delivery->logisticsCenter)
+                    <div class="w-full flex flex-wrap items-center gap-x-6 gap-y-1 text-xs text-gray-500 bg-gray-50 rounded-xl px-4 py-3">
+                        @if($delivery->logisticsCenter)<span><strong class="text-gray-700">Handling Center:</strong> {{ $delivery->logisticsCenter->name }}</span>@endif
+                        @if($delivery->received_at)<span><strong class="text-gray-700">Received:</strong> {{ $delivery->received_at->format('M d, Y h:i A') }}</span>@endif
+                        @if($delivery->scanned_at)<span><strong class="text-gray-700">Scanned:</strong> {{ $delivery->scanned_at->format('M d, Y h:i A') }}</span>@endif
+                        @if($delivery->destinationCenter)<span><strong class="text-gray-700">Destination:</strong> {{ $delivery->destinationCenter->name }}</span>@endif
+                        @if($delivery->serviceArea)<span><strong class="text-gray-700">Service Area:</strong> {{ $delivery->serviceArea->name }}</span>@endif
+                        @if($delivery->sorted_at)<span><strong class="text-gray-700">Sorted:</strong> {{ $delivery->sorted_at->format('M d, Y h:i A') }}</span>@endif
+                    </div>
+                @endif
+            </div>
+        @endif
+    </div>
+
     {{-- Proof of Delivery --}}
     @if($delivery->proofs->count())
         <div class="bg-white rounded-2xl shadow-sm border border-emerald-100 p-6 mb-6">

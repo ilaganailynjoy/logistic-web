@@ -22,8 +22,13 @@ class RiderApplication extends Model
         'vehicle_registration',
         'documents',
         'status',
+        'submitted_via',
         'notes',
         'reviewed_at',
+        'center_id',
+        'service_area_id',
+        'approved_by',
+        'provisioned_at',
     ];
 
     protected function casts(): array
@@ -31,8 +36,24 @@ class RiderApplication extends Model
         return [
             'status' => 'string',
             'reviewed_at' => 'datetime',
+            'provisioned_at' => 'datetime',
             'documents' => 'array',
         ];
+    }
+
+    public function logisticsCenter(): BelongsTo
+    {
+        return $this->belongsTo(LogisticsCenter::class, 'center_id');
+    }
+
+    public function serviceArea(): BelongsTo
+    {
+        return $this->belongsTo(ServiceArea::class, 'service_area_id');
+    }
+
+    public function approver(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'approved_by');
     }
 
     public function logs(): HasMany

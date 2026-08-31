@@ -21,7 +21,7 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         Gate::define('permanentlyDelete', function ($user) {
-            return $user->email === 'admin@logistics.com' || $user->role === 'super_admin';
+            return $user->role === 'admin';
         });
     }
 }

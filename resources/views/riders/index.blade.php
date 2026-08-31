@@ -3,14 +3,8 @@
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
                 <h1 class="text-2xl font-bold text-gray-900">Riders</h1>
-                <p class="mt-1 text-sm text-gray-500">Manage your delivery riders</p>
+                <p class="mt-1 text-sm text-gray-500">Operational rider directory (read-only)</p>
             </div>
-            <a href="{{ route('riders.create') }}" class="inline-flex items-center gap-2 bg-teal hover:bg-teal-dark text-white px-4 py-2.5 rounded-xl text-sm font-semibold transition">
-                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-                </svg>
-                Add Rider
-            </a>
         </div>
     </x-slot>
 
@@ -23,7 +17,7 @@
             ['label' => 'Inactive', 'status' => 'inactive'],
         ];
         $tabUrl = fn ($status) => route('riders.index', collect(request()->query())->except('page')->merge(['status' => $status])->filter(fn ($v) => $v !== null && $v !== '')->all());
-        $hasFilters = trim((string) request('search')) !== '' || $currentStatus;
+        $hasFilters = trim((string) request('search')) !== '' || $currentStatus || request('center_id') || request('service_area_id');
     @endphp
 
     {{-- Status Filter Tabs --}}
@@ -48,6 +42,24 @@
                 <input type="text" name="search" value="{{ request('search') }}" placeholder="Search name, email, phone, vehicle, or license plate..."
                        class="w-full bg-white border border-gray-200 rounded-xl pl-10 pr-4 py-2 text-sm focus:border-teal focus:ring-teal shadow-sm placeholder-gray-400">
             </div>
+
+            @if(Auth::user()->isAdmin())
+                <select name="center_id" title="Filter by logistics center"
+                        class="bg-white border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-600 focus:border-teal focus:ring-teal shadow-sm max-w-[200px]">
+                    <option value="">All centers</option>
+                    @foreach($filterCenters as $c)
+                        <option value="{{ $c->id }}" {{ (int) request('center_id') === $c->id ? 'selected' : '' }}>{{ $c->name }}</option>
+                    @endforeach
+                </select>
+            @endif
+
+            <select name="service_area_id" title="Filter by service area"
+                    class="bg-white border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-600 focus:border-teal focus:ring-teal shadow-sm max-w-[200px]">
+                <option value="">All service areas</option>
+                @foreach($filterServiceAreas as $sa)
+                    <option value="{{ $sa->id }}" {{ (int) request('service_area_id') === $sa->id ? 'selected' : '' }}>{{ $sa->name }}</option>
+                @endforeach
+            </select>
 
             <button type="submit" class="inline-flex items-center justify-center px-5 py-2 bg-teal hover:bg-teal-dark text-white text-sm font-semibold rounded-xl transition shadow-sm whitespace-nowrap">
                 Apply
@@ -101,16 +113,7 @@
                                 <x-status-badge :status="$rider->status" />
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap">
-                                <div class="flex items-center gap-3">
-                                    <a href="{{ route('riders.show', $rider) }}" class="text-sm font-semibold text-teal hover:text-teal-dark">View</a>
-                                    <a href="{{ route('riders.edit', $rider) }}" class="text-sm font-semibold text-gray-500 hover:text-gray-700">Edit</a>
-                                    <form action="{{ route('riders.destroy', $rider) }}" method="POST" x-data
-                                          x-on:submit.prevent="if (confirm('Are you sure you want to delete this rider?')) $el.submit()">
-                                        @csrf
-                                        @method('DELETE')
-                                        <button type="submit" class="text-sm font-semibold text-red-500 hover:text-red-600">Delete</button>
-                                    </form>
-                                </div>
+                                <a href="{{ route('riders.show', $rider) }}" class="text-sm font-semibold text-teal hover:text-teal-dark">View</a>
                             </td>
                         </tr>
                     @empty
@@ -128,14 +131,12 @@
                                             <span class="font-semibold text-gray-800">"{{ request('search') }}"</span>.
                                         </p>
                                     @else
-                                        <p class="mt-1 text-sm text-gray-500">No riders match the selected filters.</p>
+                                        <p class="mt-1 text-sm text-gray-500">No riders are currently available for the selected filters.</p>
                                     @endif
                                     @if($hasFilters)
                                         <a href="{{ route('riders.index') }}" class="mt-4 inline-flex items-center px-4 py-2 bg-white border border-gray-200 hover:border-teal hover:text-teal-dark rounded-xl text-sm font-semibold text-gray-600 transition">
                                             Clear Search &amp; Filters
                                         </a>
-                                    @else
-                                        <p class="mt-1 text-sm text-gray-500">Get started by adding your first rider.</p>
                                     @endif
                                 </div>
                             </td>

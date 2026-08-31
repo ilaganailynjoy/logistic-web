@@ -13,6 +13,8 @@ class Rider extends Model
 
     protected $fillable = [
         'user_id',
+        'center_id',
+        'service_area_id',
         'name',
         'email',
         'phone',
@@ -44,6 +46,16 @@ class Rider extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function logisticsCenter()
+    {
+        return $this->belongsTo(LogisticsCenter::class, 'center_id');
+    }
+
+    public function serviceArea()
+    {
+        return $this->belongsTo(ServiceArea::class, 'service_area_id');
     }
 
     public function deliveries(): HasMany

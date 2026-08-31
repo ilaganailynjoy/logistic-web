@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Controllers\TransactionController;
 use App\Models\Delivery;
 use App\Models\DeliveryFailure;
 use App\Models\DeliveryProof;
@@ -88,7 +89,15 @@ class RiderDeliveryController extends Controller
     {
         $this->authorizeDelivery($request, $delivery);
 
-        $delivery->load(['items', 'statusLogs' => fn ($q) => $q->latest(), 'proof', 'failure']);
+        $delivery->load([
+            'items',
+            'statusLogs' => fn ($q) => $q->latest(),
+            'proof',
+            'failure',
+            'logisticsCenter',
+            'destinationCenter',
+            'serviceArea',
+        ]);
 
         return response()->json([
             'delivery' => $this->detailPayload($delivery),
@@ -238,6 +247,11 @@ class RiderDeliveryController extends Controller
         ]);
 
         $this->logStatus($delivery, 'delivered', 'Package delivered to customer.');
+
+        // Logistics generates the transaction (₱15 rider fee + 10% admin
+        // commission) using the existing business rules. The Rider System must
+        // NOT duplicate transaction creation — it only reports completion.
+        app(TransactionController::class)->storeForDelivery($delivery);
 
         // Record rider earnings for this delivery.
         $earned = $delivery->delivery_fee !== null

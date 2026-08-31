@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use App\Models\Delivery;
 use App\Models\Rider;
-use App\Models\RiderApplication;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
@@ -29,9 +28,7 @@ class DashboardController extends Controller
             'status_counts' => $statusCounts,
             'total_riders' => $total_riders,
             'available_riders' => $available_riders,
-            'pending_applications' => RiderApplication::where('status', 'pending')->count(),
             'recent_deliveries' => Delivery::latest()->notArchived()->with('rider')->take(5)->get(),
-            'recent_applications' => RiderApplication::latest()->take(5)->get(),
         ]);
     }
 }
