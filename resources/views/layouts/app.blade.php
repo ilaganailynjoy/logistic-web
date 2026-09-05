@@ -168,6 +168,7 @@
             </div>
         </div>
         <style>[x-cloak] { display: none !important; }</style>
+        @include('layouts.partials.form-controls')
         @stack('scripts')
     </body>
 </html>

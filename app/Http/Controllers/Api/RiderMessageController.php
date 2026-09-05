@@ -42,13 +42,34 @@ class RiderMessageController extends Controller
         $conversation->update(['unread_count' => 0]);
 
         return response()->json([
-            'conversation' => [
-                'id' => $conversation->id,
-                'subject' => $conversation->subject,
-                'last_message_at' => $conversation->last_message_at?->toISOString(),
-            ],
+            'conversation' => $this->conversationPayload($conversation),
             'messages' => $this->messagesFor($conversation)->map(fn ($m) => $this->payload($m, $user))->values(),
         ]);
+    }
+
+    /**
+     * Describe the rider's conversation and, importantly, WHO the rider is
+     * messaging (the other party). This lets the Driver_app header identify the
+     * recipient instead of showing an anonymous thread.
+     *
+     * The rider's only conversation is a rider <-> Logistics support thread, so
+     * the recipient is the Invoiz logistics/support team. Delivery context is
+     * surfaced when the thread is tied to a delivery (order_id).
+     */
+    private function conversationPayload(Conversation $conversation): array
+    {
+        return [
+            'id' => $conversation->id,
+            'subject' => $conversation->subject,
+            'last_message_at' => $conversation->last_message_at?->toISOString(),
+            // Recipient (the party the rider is messaging).
+            'recipient_name' => 'Logistics',
+            'recipient_type' => 'logistics',
+            'recipient_label' => 'Invoiz Logistics Support',
+            // Delivery context when this thread is tied to a delivery.
+            'order_id' => $conversation->order_id,
+            'tracking' => $conversation->delivery?->tracking_number,
+        ];
     }
 
     public function poll(Request $request): JsonResponse
@@ -103,6 +124,7 @@ class RiderMessageController extends Controller
                     'stored_path' => $storedPath,
                     'mime_type' => $file->getMimeType(),
                     'file_size' => $file->getSize(),
+                    'disk' => 'public',
                 ]);
             }
 

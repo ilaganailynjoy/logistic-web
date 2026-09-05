@@ -28,7 +28,7 @@ Route::middleware('guest')->group(function () {
         ->name('password.request');
 
     // Email-based password reset is intentionally disabled for Logistics:
-    // passwords are reset by the system administrator only.
+    // passwords are reset by the Logistics Manager only.
     Route::post('forgot-password', function () {
         return redirect()->route('password.request');
     });

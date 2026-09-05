@@ -106,6 +106,7 @@ class RiderMessageController extends Controller
                     'stored_path' => $storedPath,
                     'mime_type' => $file->getMimeType(),
                     'file_size' => $file->getSize(),
+                    'disk' => 'local',
                 ]);
             }
 

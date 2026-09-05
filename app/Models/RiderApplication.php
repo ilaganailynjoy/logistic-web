@@ -23,6 +23,8 @@ class RiderApplication extends Model
         'documents',
         'status',
         'submitted_via',
+        'rider_type',
+        'vehicle_ownership',
         'notes',
         'reviewed_at',
         'center_id',

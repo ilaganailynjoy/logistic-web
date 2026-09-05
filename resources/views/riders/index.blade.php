@@ -17,7 +17,7 @@
             ['label' => 'Inactive', 'status' => 'inactive'],
         ];
         $tabUrl = fn ($status) => route('riders.index', collect(request()->query())->except('page')->merge(['status' => $status])->filter(fn ($v) => $v !== null && $v !== '')->all());
-        $hasFilters = trim((string) request('search')) !== '' || $currentStatus || request('center_id') || request('service_area_id');
+        $hasFilters = trim((string) request('search')) !== '' || $currentStatus || request('center_id') || request('service_area_id') || request('online');
     @endphp
 
     {{-- Status Filter Tabs --}}
@@ -61,6 +61,13 @@
                 @endforeach
             </select>
 
+            <select name="online" title="Filter by online availability for new deliveries"
+                    class="bg-white border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-600 focus:border-teal focus:ring-teal shadow-sm max-w-[200px]">
+                <option value="">All availability</option>
+                <option value="online" {{ request('online') === 'online' ? 'selected' : '' }}>Online</option>
+                <option value="offline" {{ request('online') === 'offline' ? 'selected' : '' }}>Offline</option>
+            </select>
+
             <button type="submit" class="inline-flex items-center justify-center px-5 py-2 bg-teal hover:bg-teal-dark text-white text-sm font-semibold rounded-xl transition shadow-sm whitespace-nowrap">
                 Apply
             </button>
@@ -87,6 +94,7 @@
                         <x-th-sort field="vehicle" label="Vehicle"/>
                         <x-th-sort field="plate" label="License Plate"/>
                         <x-th-sort field="status" label="Status"/>
+                        <th class="px-6 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Availability</th>
                         <th class="px-6 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Actions</th>
                     </tr>
                 </thead>
@@ -113,12 +121,23 @@
                                 <x-status-badge :status="$rider->status" />
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap">
+                                @if($rider->is_online)
+                                    <span class="inline-flex items-center gap-1.5 text-xs font-medium text-green-600">
+                                        <span class="h-2 w-2 rounded-full bg-green-500"></span> Online
+                                    </span>
+                                @else
+                                    <span class="inline-flex items-center gap-1.5 text-xs font-medium text-gray-400" title="Offline — not available for new deliveries">
+                                        <span class="h-2 w-2 rounded-full bg-gray-300"></span> Offline
+                                    </span>
+                                @endif
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap">
                                 <a href="{{ route('riders.show', $rider) }}" class="text-sm font-semibold text-teal hover:text-teal-dark">View</a>
                             </td>
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="7" class="px-6 py-16 text-center">
+                            <td colspan="8" class="px-6 py-16 text-center">
                                 <div class="flex flex-col items-center">
                                     <div class="h-12 w-12 rounded-full bg-teal-light flex items-center justify-center mb-3">
                                         <svg class="h-6 w-6 text-teal" fill="none" viewBox="0 0 24 24" stroke="currentColor">

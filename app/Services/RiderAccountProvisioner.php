@@ -51,13 +51,24 @@ class RiderAccountProvisioner
 
             $email = $application->email;
 
+            $nameParts = array_values(array_filter(array_map('trim', explode(' ', $application->name))));
+            $first = $nameParts[0] ?? $application->name;
+            $last = $nameParts[1] ?? $application->name;
+            $middle = count($nameParts) > 2 ? substr($nameParts[1], 0, 1) : null;
+
             $user = User::where('email', $email)->first();
             if (! $user) {
                 $user = User::create([
                     'name' => $application->name,
+                    'first_name' => $first,
+                    'last_name' => $last,
+                    'middle_initial' => $middle,
+                    'sex' => 'other',
                     'email' => $email,
                     'password' => Hash::make($settings['password']),
                     'phone' => $application->phone,
+                    'birthday' => '1970-01-01',
+                    'age' => 0,
                     'role' => 'rider',
                     'status' => 'active',
                     'center_id' => $center->id,
@@ -65,6 +76,8 @@ class RiderAccountProvisioner
                 ]);
             } else {
                 $user->update([
+                    'first_name' => $user->first_name ?: $first,
+                    'last_name' => $user->last_name ?: $last,
                     'role' => 'rider',
                     'status' => 'active',
                     'center_id' => $center->id,
@@ -163,7 +176,7 @@ class RiderAccountProvisioner
                 'title' => 'Rider Application Rejected',
                 'message' => "{$application->name}'s rider application was rejected.",
                 'icon' => 'close',
-                'priority' => 'medium',
+                'priority' => 'normal',
                 'link' => null,
             ]);
         });

@@ -45,6 +45,7 @@ class User extends Authenticatable
     {
         return [
             'email_verified_at' => 'datetime',
+            'birthday' => 'date',
             'password' => 'hashed',
         ];
     }
@@ -67,5 +68,20 @@ class User extends Authenticatable
     public function isStaff(): bool
     {
         return $this->role === 'staff';
+    }
+
+    /**
+     * Human-readable role label used across the Logistics UI.
+     * The internal role values ('admin', 'staff', 'rider') are preserved for
+     * authorization; this maps them to Logistics-specific display names.
+     */
+    public function roleLabel(): string
+    {
+        return match ($this->role) {
+            'admin' => 'Logistics Manager',
+            'staff' => 'Logistics Staff',
+            'rider' => 'Rider',
+            default => ucfirst((string) $this->role),
+        };
     }
 }

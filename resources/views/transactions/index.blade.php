@@ -2,7 +2,7 @@
     <div class="space-y-6">
         <div>
             <h1 class="text-2xl font-bold text-gray-900">Transactions</h1>
-            <p class="text-sm text-gray-500 mt-1">Delivery fees, rider fees (₱15/parcel), and admin commissions (10%)</p>
+            <p class="text-sm text-gray-500 mt-1">Delivery fees, rider fees (₱15/parcel), and management commissions (10%)</p>
         </div>
 
         @php

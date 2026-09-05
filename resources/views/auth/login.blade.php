@@ -202,5 +202,6 @@
         </div>
     </div>
 </div>
+@include('layouts.partials.form-controls')
 </body>
 </html>

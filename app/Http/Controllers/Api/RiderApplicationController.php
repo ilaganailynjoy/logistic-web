@@ -43,13 +43,22 @@ class RiderApplicationController extends Controller
             'documents.drivers_license' => 'required|file|mimes:jpg,jpeg,png,webp,pdf,doc,docx|max:5120',
             'documents.vehicle_registration' => 'required|file|mimes:jpg,jpeg,png,webp,pdf,doc,docx|max:5120',
             'documents.proof_of_address' => 'nullable|file|mimes:jpg,jpeg,png,webp,pdf,doc,docx|max:5120',
+            'documents.deed_of_sale' => 'nullable|file|mimes:jpg,jpeg,png,webp,pdf,doc,docx|max:5120',
+            'documents.sales_invoice' => 'nullable|file|mimes:jpg,jpeg,png,webp,pdf,doc,docx|max:5120',
+            'documents.owner_valid_id' => 'nullable|file|mimes:jpg,jpeg,png,webp,pdf,doc,docx|max:5120',
+            'documents.authorization_letter' => 'nullable|file|mimes:jpg,jpeg,png,webp,pdf,doc,docx|max:5120',
+            'documents.encumbrance_certificate' => 'nullable|file|mimes:jpg,jpeg,png,webp,pdf,doc,docx|max:5120',
             'documents.other' => 'nullable|file|mimes:jpg,jpeg,png,webp,pdf,doc,docx|max:5120',
+            'rider_type' => 'nullable|in:full_time,part_time',
+            'vehicle_ownership' => 'nullable|in:own,borrowed,second_hand,financing',
         ]);
 
         $data['phone'] = PhilippinePhone::normalize($data['phone']);
         $data['status'] = 'pending';
         $data['documents'] = [];
         $data['submitted_via'] = 'mobile';
+        $data['rider_type'] = $data['rider_type'] ?? 'full_time';
+        $data['vehicle_ownership'] = $data['vehicle_ownership'] ?? null;
 
         $application = DB::transaction(function () use ($data, $request) {
             $app = RiderApplication::create($data);
@@ -111,6 +120,8 @@ class RiderApplicationController extends Controller
                 'phone' => $app->phone,
                 'status' => $app->status,
                 'submitted_via' => $app->submitted_via,
+                'rider_type' => $app->rider_type,
+                'vehicle_ownership' => $app->vehicle_ownership,
                 'created_at' => $app->created_at->toISOString(),
                 'reviewed_at' => $app->reviewed_at?->toISOString(),
                 'notes' => $app->notes,

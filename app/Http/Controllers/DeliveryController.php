@@ -209,6 +209,8 @@ class DeliveryController extends Controller
                     $reason = 'Rider application not approved';
                 } elseif ($rider->status === 'inactive') {
                     $reason = 'Account inactive';
+                } elseif (!$rider->is_online) {
+                    $reason = 'Offline - not available for new deliveries';
                 } elseif ($rider->vehicle_verification !== 'verified') {
                     $reason = 'Vehicle not verified';
                 } elseif (!$rider->vehicleTypeIsActive()) {
@@ -227,9 +229,10 @@ class DeliveryController extends Controller
                     'eligible' => $reason === null,
                     'reason' => $reason,
                     'capacity' => $rider->capacityLimit(),
+                    'is_online' => (bool) $rider->is_online,
                 ];
             })
-            ->sortBy([['eligible', 'desc'], ['rider.name', 'asc']])
+            ->sortBy([['eligible', 'desc'], ['is_online', 'desc'], ['rider.name', 'asc']])
             ->values();
 
         return view('deliveries.show', [
@@ -331,6 +334,10 @@ class DeliveryController extends Controller
             return back()->withErrors(['rider_id' => 'Cannot assign delivery. Rider account is inactive.']);
         }
 
+        if (!$rider->is_online) {
+            return back()->withErrors(['rider_id' => 'Cannot assign delivery. Rider is offline and not available for new deliveries.']);
+        }
+
         if ($rider->vehicle_verification !== 'verified') {
             return back()->withErrors(['rider_id' => 'Cannot assign delivery. Rider vehicle has not been verified.']);
         }
@@ -341,6 +348,14 @@ class DeliveryController extends Controller
 
         if ($rider->deliveries()->whereIn('status', Delivery::ACTIVE_STATUSES)->exists()) {
             return back()->withErrors(['rider_id' => 'Cannot assign delivery. Rider is currently delivering.']);
+        }
+
+        // Terminal deliveries must keep their final state and history.
+        // Reassigning a delivered/cancelled delivery would reset its status
+        // to "assigned" while stale future logs remain, corrupting the
+        // rider's status history. Failed deliveries stay assignable (retry).
+        if (in_array($delivery->status, ['delivered', 'cancelled'], true)) {
+            return back()->withErrors(['rider_id' => 'Cannot assign delivery. Delivered and cancelled deliveries cannot be reassigned.']);
         }
 
         $weight = (float) ($delivery->weight ?? 0);

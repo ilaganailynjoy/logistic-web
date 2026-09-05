@@ -1,6 +1,7 @@
 <x-app-layout>
     @php
         $tabs = [
+            'all' => 'All Reports',
             'delivery' => 'Delivery Report',
             'center' => 'Center Report',
             'area' => 'Service Area Report',
@@ -13,9 +14,18 @@
     @endphp
 
     <div class="space-y-6">
-        <div>
-            <h1 class="text-2xl font-bold text-gray-900">Reports</h1>
-            <p class="text-sm text-gray-500 mt-1">Operational and financial analytics</p>
+        <div class="flex flex-wrap items-start justify-between gap-4">
+            <div>
+                <h1 class="text-2xl font-bold text-gray-900">Reports</h1>
+                <p class="text-sm text-gray-500 mt-1">Operational and financial analytics</p>
+            </div>
+            <a href="{{ route('reports.export', request()->query()) }}"
+               class="inline-flex items-center gap-2 bg-teal hover:bg-teal-dark text-white font-semibold px-5 py-2.5 rounded-xl transition text-sm shadow-sm">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                </svg>
+                {{ $tab === 'all' ? 'Download Consolidated PDF' : 'Download PDF' }}
+            </a>
         </div>
 
         {{-- Tabs --}}
@@ -51,7 +61,7 @@
                     </select>
                 </div>
                 @endif
-                @if($tab === 'delivery' || $tab === 'rider')
+                @if($tab === 'delivery' || $tab === 'rider' || $tab === 'all')
                 <div>
                     <label class="block text-xs font-medium text-gray-500 mb-1">Rider</label>
                     <select name="rider_id" class="rounded-xl border-gray-300 focus:border-teal focus:ring-teal text-sm">
@@ -62,7 +72,7 @@
                     </select>
                 </div>
                 @endif
-                @if($tab === 'delivery' || $tab === 'area')
+                @if($tab === 'delivery' || $tab === 'area' || $tab === 'all')
                 <div>
                     <label class="block text-xs font-medium text-gray-500 mb-1">Service Area</label>
                     <select name="service_area_id" class="rounded-xl border-gray-300 focus:border-teal focus:ring-teal text-sm">
@@ -77,8 +87,14 @@
             </div>
         </form>
 
+        @if($tab === 'all')
+            <div class="bg-teal/10 border border-teal/30 rounded-2xl px-4 py-3 text-sm text-teal-dark">
+                <span class="font-semibold">All Reports</span> — a consolidated view of all five report categories (Delivery, Center, Service Area, Rider, and Financial) under the selected filters. The <span class="font-semibold">Download PDF</span> button generates a single consolidated report containing every section.
+            </div>
+        @endif
+
         {{-- Delivery Report --}}
-        @if($tab === 'delivery')
+        @if($tab === 'delivery' || $tab === 'all')
             <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
                 @php
                     $cards = [
@@ -105,7 +121,7 @@
         @endif
 
         {{-- Center Report --}}
-        @if($tab === 'center')
+        @if($tab === 'center' || $tab === 'all')
             <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
                 <table class="min-w-full divide-y divide-gray-100">
                     <thead class="bg-gray-50/50">
@@ -135,7 +151,7 @@
         @endif
 
         {{-- Service Area Report --}}
-        @if($tab === 'area')
+        @if($tab === 'area' || $tab === 'all')
             <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
                 <table class="min-w-full divide-y divide-gray-100">
                     <thead class="bg-gray-50/50">
@@ -163,7 +179,7 @@
         @endif
 
         {{-- Rider Report --}}
-        @if($tab === 'rider')
+        @if($tab === 'rider' || $tab === 'all')
             <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
                 <table class="min-w-full divide-y divide-gray-100">
                     <thead class="bg-gray-50/50">
@@ -193,7 +209,7 @@
         @endif
 
         {{-- Financial Report --}}
-        @if($tab === 'financial')
+        @if($tab === 'financial' || $tab === 'all')
             @php
                 $fs = $financialStats;
                 $currency = fn ($v) => '₱' . number_format((float) ($v ?? 0), 2);
@@ -212,7 +228,7 @@
                     <p class="text-3xl font-bold text-gray-900">{{ $currency($fs['total_rider_fees'] ?? 0) }}</p>
                 </div>
                 <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-                    <p class="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Admin Commissions</p>
+                    <p class="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Management Commissions</p>
                     <p class="text-3xl font-bold text-teal-dark">{{ $currency($fs['total_commissions'] ?? 0) }}</p>
                 </div>
             </div>

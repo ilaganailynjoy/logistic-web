@@ -7,6 +7,7 @@ use App\Models\Rider;
 use App\Models\Transaction;
 use App\Models\LogisticsCenter;
 use App\Models\ServiceArea;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -48,6 +49,102 @@ class ReportController extends Controller
             'serviceAreas' => ServiceArea::where('is_active', true)->orderBy('name')->get(['id', 'name', 'logistics_center_id']),
             'filters' => compact('dateFrom', 'dateTo', 'centerId', 'riderId', 'serviceAreaId'),
         ]);
+    }
+
+    public function export(Request $request): \Symfony\Component\HttpFoundation\Response
+    {
+        $tab = $request->query('tab', 'delivery');
+        $validTabs = ['all', 'delivery', 'center', 'area', 'rider', 'financial'];
+        if (!in_array($tab, $validTabs, true)) {
+            $tab = 'delivery';
+        }
+
+        $dateFrom = trim((string) $request->query('date_from', ''));
+        $dateTo = trim((string) $request->query('date_to', ''));
+        $centerId = (int) $request->query('center_id', 0);
+        $riderId = (int) $request->query('rider_id', 0);
+        $serviceAreaId = (int) $request->query('service_area_id', 0);
+
+        $user = Auth::user();
+        $staffCenterId = $user->isStaff() ? $user->center_id : null;
+
+        if ($staffCenterId) {
+            $centerId = $staffCenterId;
+        }
+
+        $parsedFrom = $dateFrom !== '' && strtotime($dateFrom) ? $dateFrom : null;
+        $parsedTo = $dateTo !== '' && strtotime($dateTo) ? $dateTo : null;
+
+        switch ($tab) {
+            case 'all':
+                $stats = [
+                    'delivery' => $this->deliveryStats($dateFrom, $dateTo, $centerId, $riderId, $serviceAreaId, $staffCenterId),
+                    'center' => $this->centerStats($dateFrom, $dateTo, $staffCenterId),
+                    'area' => $this->areaStats($dateFrom, $dateTo, $centerId, $staffCenterId),
+                    'rider' => $this->riderStats($dateFrom, $dateTo, $centerId, $riderId, $staffCenterId),
+                    'financial' => $this->financialStats($dateFrom, $dateTo, $centerId, $staffCenterId),
+                ];
+                break;
+            case 'delivery':
+                $stats = $this->deliveryStats($dateFrom, $dateTo, $centerId, $riderId, $serviceAreaId, $staffCenterId);
+                break;
+            case 'center':
+                $stats = $this->centerStats($dateFrom, $dateTo, $staffCenterId);
+                break;
+            case 'area':
+                $stats = $this->areaStats($dateFrom, $dateTo, $centerId, $staffCenterId);
+                break;
+            case 'rider':
+                $stats = $this->riderStats($dateFrom, $dateTo, $centerId, $riderId, $staffCenterId);
+                break;
+            case 'financial':
+            default:
+                $stats = $this->financialStats($dateFrom, $dateTo, $centerId, $staffCenterId);
+                break;
+        }
+
+        $centerName = null;
+        if ($centerId > 0) {
+            $centerName = LogisticsCenter::find($centerId)?->name;
+        }
+
+        $reportTitles = [
+            'all' => 'Consolidated Logistics Report',
+            'delivery' => 'Delivery Report',
+            'center' => 'Center Report',
+            'area' => 'Service Area Report',
+            'rider' => 'Rider Report',
+            'financial' => 'Financial Report',
+        ];
+
+        $common = [
+            'title' => $reportTitles[$tab],
+            'dateFrom' => $parsedFrom,
+            'dateTo' => $parsedTo,
+            'preparedBy' => $this->preparedByName($user),
+            'generatedAt' => now()->format('Y-m-d H:i:s'),
+            'centerName' => $centerName,
+        ];
+
+        if ($tab === 'all') {
+            $pdf = Pdf::loadView('reports.pdf-all', array_merge($common, ['stats' => $stats]));
+        } else {
+            $pdf = Pdf::loadView('reports.pdf', array_merge($common, ['tab' => $tab, 'stats' => $stats]));
+        }
+
+        $pdf->setPaper('a4', 'portrait');
+
+        $filename = 'invoiz-logistics-' . ($tab === 'all' ? 'all-reports' : $tab . '-report') . '-' . now()->format('Y-m-d') . '.pdf';
+
+        return $pdf->download($filename);
+    }
+
+    private function preparedByName($user): string
+    {
+        // Use the user-facing role label (e.g. "Logistics Manager" for the
+        // internal admin role, "Logistics Staff" for staff) rather than the
+        // raw internal name/role so reports read as plain language.
+        return (string) $user->roleLabel();
     }
 
     private function baseQuery(?string $dateFrom, ?string $dateTo, int $centerId, ?int $staffCenterId): \Illuminate\Database\Eloquent\Builder

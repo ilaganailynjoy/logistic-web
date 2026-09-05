@@ -79,9 +79,9 @@ class DatabaseSeeder extends Seeder
 
         // ---------- Users (Admin + Staff) ----------
         User::create([
-            'name' => 'Admin Logistics',
-            'first_name' => 'Admin',
-            'last_name' => 'Logistics',
+            'name' => 'Logistics Manager',
+            'first_name' => 'Logistics',
+            'last_name' => 'Manager',
             'sex' => 'male',
             'email' => 'admin@logistics.com',
             'password' => 'password',

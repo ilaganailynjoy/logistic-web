@@ -49,5 +49,6 @@
 
             <p class="mt-6 text-sm text-white/80">&copy; {{ date('Y') }} Logistics. All rights reserved.</p>
         </div>
+        @include('layouts.partials.form-controls')
     </body>
 </html>

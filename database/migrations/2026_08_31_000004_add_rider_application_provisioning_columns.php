@@ -16,7 +16,8 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('rider_applications', function (Blueprint $table) {
-            $table->foreignId('center_id')->nullable()->after('vehicle_registration')->constrained('logistics_centers')->nullOnDelete();
+            $table->enum('submitted_via', ['web', 'mobile'])->default('web')->nullable()->after('vehicle_registration');
+            $table->foreignId('center_id')->nullable()->after('submitted_via')->constrained('logistics_centers')->nullOnDelete();
             $table->foreignId('service_area_id')->nullable()->after('center_id')->constrained('service_areas')->nullOnDelete();
             $table->foreignId('approved_by')->nullable()->after('service_area_id')->constrained('users')->nullOnDelete();
             $table->timestamp('provisioned_at')->nullable()->after('approved_by');
@@ -26,10 +27,8 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('rider_applications', function (Blueprint $table) {
-            $table->dropConstrainedForeignId('provisioned_at');
-            $table->dropConstrainedForeignId('approved_by');
-            $table->dropConstrainedForeignId('service_area_id');
-            $table->dropConstrainedForeignId('center_id');
+            $table->dropForeign(['approved_by', 'service_area_id', 'center_id']);
+            $table->dropColumn(['submitted_via', 'center_id', 'service_area_id', 'approved_by', 'provisioned_at']);
         });
     }
 };

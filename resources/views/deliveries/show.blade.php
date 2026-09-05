@@ -423,19 +423,23 @@
                                     class="flex-1 rounded-xl border-gray-300 focus:border-teal focus:ring-teal text-sm">
                                 <option value="">— Select a rider —</option>
                                 @if($riderEligibility->where('eligible', true)->isNotEmpty())
-                                    <optgroup label="✓ Eligible">
+                                    <optgroup label="✓ Available — Online">
                                         @foreach($riderEligibility->where('eligible', true) as $item)
                                             <option value="{{ $item['rider']->id }}">
-                                                ✓ {{ $item['rider']->name }} — {{ ucfirst($item['rider']->vehicle_type) }} — up to {{ $item['capacity'] }} kg
+                                                ✓ Online — {{ $item['rider']->name }} — {{ ucfirst($item['rider']->vehicle_type) }} — up to {{ $item['capacity'] }} kg
                                             </option>
                                         @endforeach
                                     </optgroup>
                                 @endif
                                 @if($riderEligibility->where('eligible', false)->isNotEmpty())
-                                    <optgroup label="✕ Not Eligible">
+                                    <optgroup label="✕ Unavailable">
                                         @foreach($riderEligibility->where('eligible', false) as $item)
                                             <option value="" disabled>
-                                                ✕ {{ $item['rider']->name }} — {{ ucfirst($item['rider']->vehicle_type) }} — {{ $item['reason'] }}
+                                                @if(!$item['is_online'])
+                                                    ○ Offline — {{ $item['rider']->name }} — {{ ucfirst($item['rider']->vehicle_type) }} — {{ $item['reason'] }}
+                                                @else
+                                                    ✕ {{ $item['rider']->name }} — {{ ucfirst($item['rider']->vehicle_type) }} — {{ $item['reason'] }}
+                                                @endif
                                             </option>
                                         @endforeach
                                     </optgroup>
@@ -446,7 +450,7 @@
                             </button>
                         </div>
                         @if($riderEligibility->where('eligible', true)->isEmpty())
-                            <p class="mt-2 text-xs text-amber-600">No eligible riders right now. Riders must be approved, active, have a verified vehicle, no active delivery, and sufficient capacity.</p>
+                            <p class="mt-2 text-xs text-amber-600">No eligible riders right now. Riders must be approved, active, online, have a verified vehicle, no active delivery, and sufficient capacity.</p>
                         @endif
                         @if($errors->has('rider_id'))
                             <p class="text-red-500 text-xs mt-1">{{ $errors->first('rider_id') }}</p>
@@ -617,7 +621,7 @@
                 <div class="px-6 py-4 border-b border-gray-100">
                     <h4 class="font-bold text-gray-900">Override Delivery Status?</h4>
                     <p class="text-sm text-gray-500 mt-0.5">
-                        This is an administrator override. The change from
+                        This is a Logistics Manager override. The change from
                         <strong>{{ str_replace('_', ' ', $delivery->status) }}</strong> will be permanently recorded in the audit timeline together with your reason.
                     </p>
                 </div>

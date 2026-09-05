@@ -65,12 +65,12 @@
                 </div>
                 <div>
                     <label for="password" class="block text-sm font-medium text-gray-700 mb-1">Password <span class="text-red-500">*</span></label>
-                    <input type="password" name="password" id="password" required class="w-full rounded-xl border-gray-300 focus:border-teal focus:ring-teal text-sm">
+                    <x-password-input name="password" id="password" class="w-full" required :error="$errors->has('password')" />
                     @error('password')<p class="text-red-500 text-xs mt-1">{{ $message }}</p>@enderror
                 </div>
                 <div>
                     <label for="password_confirmation" class="block text-sm font-medium text-gray-700 mb-1">Confirm Password <span class="text-red-500">*</span></label>
-                    <input type="password" name="password_confirmation" id="password_confirmation" required class="w-full rounded-xl border-gray-300 focus:border-teal focus:ring-teal text-sm">
+                    <x-password-input name="password_confirmation" id="password_confirmation" class="w-full" required />
                 </div>
             </div>
 

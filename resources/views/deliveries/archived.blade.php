@@ -154,7 +154,7 @@
                     <h4 class="font-bold text-red-700">Permanently Delete Delivery?</h4>
                     <p class="text-sm text-gray-600 mt-1">
                         This will <strong>permanently destroy</strong> the delivery record, its timeline, and all related data.
-                        This action cannot be undone and is restricted to super administrators.
+                        This action cannot be undone and is restricted to the Logistics Manager.
                     </p>
                 </div>
                 <div class="px-6 py-4 bg-gray-50 rounded-b-2xl flex justify-end gap-3">

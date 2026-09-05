@@ -39,7 +39,7 @@
             <div>
                 <h2 class="text-xl font-bold text-gray-900">{{ $staff->name }}</h2>
                 <p class="mt-1 text-sm text-gray-500">{{ $staff->email }} &middot; {{ $staff->phone }}</p>
-                <span class="mt-3 inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-lg bg-teal-light text-teal-dark">Staff</span>
+                <span class="mt-3 inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-lg bg-teal-light text-teal-dark">{{ $staff->roleLabel() }}</span>
             </div>
         </div>
     </div>
@@ -69,7 +69,7 @@
             </div>
             <div>
                 <p class="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Role</p>
-                <p class="text-sm font-medium text-gray-900">Staff</p>
+                <p class="text-sm font-medium text-gray-900">{{ $staff->roleLabel() }}</p>
             </div>
             <div>
                 <p class="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Joined</p>

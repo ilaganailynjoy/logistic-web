@@ -14,6 +14,7 @@ use App\Http\Controllers\LogisticsCenterController;
 use App\Http\Controllers\ServiceAreaController;
 use App\Http\Controllers\TransactionController;
 use App\Http\Controllers\ReportController;
+use App\Http\Controllers\RiderApplicationAdminController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
@@ -44,6 +45,16 @@ Route::middleware(['auth', 'verified', 'staff'])->group(function () {
     Route::get('riders', [RiderController::class, 'index'])->name('riders.index');
     Route::get('riders/{rider}', [RiderController::class, 'show'])->name('riders.show');
 
+    // ── Rider Applications (Admin Only: review & provision) ─
+    Route::middleware('admin')->group(function () {
+        Route::get('rider-applications', [RiderApplicationAdminController::class, 'index'])->name('rider-applications.index');
+        Route::get('rider-applications/documents/{document}/view', [RiderApplicationAdminController::class, 'viewDocument'])->name('rider-applications.documents.view');
+        Route::get('rider-applications/documents/{document}/download', [RiderApplicationAdminController::class, 'downloadDocument'])->name('rider-applications.documents.download');
+        Route::get('rider-applications/{application}', [RiderApplicationAdminController::class, 'show'])->name('rider-applications.show');
+        Route::post('rider-applications/{application}/approve', [RiderApplicationAdminController::class, 'approve'])->name('rider-applications.approve');
+        Route::post('rider-applications/{application}/reject', [RiderApplicationAdminController::class, 'reject'])->name('rider-applications.reject');
+    });
+
     // ── Staff Management (Admin Only) ───────────────────────
     Route::middleware('admin')->group(function () {
         Route::resource('staff', StaffController::class)->except(['destroy']);
@@ -72,6 +83,7 @@ Route::middleware(['auth', 'verified', 'staff'])->group(function () {
 
     // ── Reports ─────────────────────────────────────────────
     Route::get('reports', [ReportController::class, 'index'])->name('reports.index');
+    Route::get('reports/export', [ReportController::class, 'export'])->name('reports.export');
 
     // ── Settings ────────────────────────────────────────────
     Route::get('settings', [SettingController::class, 'index'])->name('settings.index');

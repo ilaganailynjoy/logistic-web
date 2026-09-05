@@ -48,6 +48,14 @@ class RiderController extends Controller
             $query->where('status', $status);
         }
 
+        // Online/offline availability filter (dashboard "Online Riders" link).
+        $online = trim((string) $request->query('online', ''));
+        if ($online === 'online') {
+            $query->where('is_online', true);
+        } elseif ($online === 'offline') {
+            $query->where('is_online', false);
+        }
+
         if ($serviceAreaId > 0) {
             $query->where('service_area_id', $serviceAreaId);
         }

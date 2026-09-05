@@ -15,6 +15,7 @@ class MessageAttachment extends Model
         'stored_path',
         'mime_type',
         'file_size',
+        'disk',
     ];
 
     public function message(): BelongsTo
@@ -47,7 +48,10 @@ class MessageAttachment extends Model
     public function absolutePath(): string
     {
         if (str_starts_with($this->stored_path, 'message-attachments/')) {
-            return \Illuminate\Support\Facades\Storage::disk('local')->path($this->stored_path);
+            // Attachments may live on the 'local' (private) or 'public' disk
+            // depending on which client uploaded them (web vs Rider App API).
+            $disk = in_array($this->disk, ['local', 'public']) ? $this->disk : 'local';
+            return \Illuminate\Support\Facades\Storage::disk($disk)->path($this->stored_path);
         }
 
         return public_path($this->stored_path);

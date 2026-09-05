@@ -91,14 +91,14 @@
                 @endif
             </div>
             <div>
-                <p class="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Online</p>
+                <p class="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Availability</p>
                 @if($rider->is_online)
                     <span class="inline-flex items-center gap-1.5 text-sm font-medium text-green-600">
-                        <span class="h-2 w-2 rounded-full bg-green-500"></span> Online
+                        <span class="h-2 w-2 rounded-full bg-green-500"></span> Online — Available for deliveries
                     </span>
                 @else
-                    <span class="inline-flex items-center gap-1.5 text-sm font-medium text-gray-400">
-                        <span class="h-2 w-2 rounded-full bg-gray-300"></span> Offline
+                    <span class="inline-flex items-center gap-1.5 text-sm font-medium text-gray-400" title="Offline — not available for new deliveries">
+                        <span class="h-2 w-2 rounded-full bg-gray-300"></span> Offline — Not available for new deliveries
                     </span>
                 @endif
             </div>

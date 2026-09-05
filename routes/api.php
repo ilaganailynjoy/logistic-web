@@ -10,6 +10,7 @@ use App\Http\Controllers\Api\RiderLocationController;
 use App\Http\Controllers\Api\RiderConversationController;
 use App\Http\Controllers\Api\RiderMessageController;
 use App\Http\Controllers\Api\RiderNotificationController;
+use App\Http\Controllers\Api\RiderPasswordController;
 use App\Http\Controllers\Api\VehicleTypeController;
 use Illuminate\Support\Facades\Route;
 
@@ -27,6 +28,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::middleware('role:rider')->prefix('rider')->group(function () {
         Route::get('/profile', [RiderController::class, 'profile']);
         Route::patch('/profile', [RiderController::class, 'updateProfile']);
+        Route::patch('/password', [RiderPasswordController::class, 'update']);
         Route::patch('/status', [RiderController::class, 'updateStatus']);
         Route::get('/dashboard', [RiderController::class, 'dashboard']);
 

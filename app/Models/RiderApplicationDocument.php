@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Str;
 
 class RiderApplicationDocument extends Model
 {
@@ -12,6 +13,11 @@ class RiderApplicationDocument extends Model
         'drivers_license' => "Driver's License",
         'proof_of_address' => 'Proof of Address',
         'vehicle_registration' => 'Vehicle Registration',
+        'deed_of_sale' => 'Deed of Sale',
+        'sales_invoice' => 'Sales Invoice',
+        'owner_valid_id' => 'Owner Valid ID',
+        'authorization_letter' => 'Authorization Letter',
+        'encumbrance_certificate' => 'Certificate of Encumbrance',
         'other' => 'Other Supporting Document',
     ];
 

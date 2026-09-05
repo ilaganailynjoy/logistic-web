@@ -25,7 +25,7 @@
                 </div>
                 <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-teal-light text-teal-dark text-xs font-semibold">
                     <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                    Logistics Staff
+                    {{ $user->roleLabel() }}
                 </span>
             </div>
 
@@ -80,7 +80,7 @@
                         <div class="sm:col-span-2">
                             <label class="block text-sm font-medium text-gray-700 mb-1">Role</label>
                             <div class="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-500">
-                                Logistics Staff
+                                {{ $user->roleLabel() }}
                             </div>
                         </div>
                     </div>
@@ -124,20 +124,17 @@
                         <div class="px-6 py-5 space-y-4">
                             <div>
                                 <label for="current_password" class="block text-sm font-medium text-gray-700 mb-1">Current Password</label>
-                                <input id="current_password" name="current_password" type="password" required
-                                       class="block w-full border-gray-300 focus:border-teal focus:ring-teal rounded-xl shadow-sm" />
+                                <x-password-input id="current_password" name="current_password" class="w-full" required :error="$errors->has('current_password')" />
                                 @error('current_password')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
                             </div>
                             <div>
                                 <label for="password" class="block text-sm font-medium text-gray-700 mb-1">New Password</label>
-                                <input id="password" name="password" type="password" required minlength="8"
-                                       class="block w-full border-gray-300 focus:border-teal focus:ring-teal rounded-xl shadow-sm" />
+                                <x-password-input id="password" name="password" class="w-full" required minlength="8" :error="$errors->has('password')" />
                                 @error('password')<p class="mt-1 text-sm text-red-600">{{ $message }}</p>@enderror
                             </div>
                             <div>
                                 <label for="password-confirm" class="block text-sm font-medium text-gray-700 mb-1">Confirm New Password</label>
-                                <input id="password-confirm" name="password_confirmation" type="password" required minlength="8"
-                                       class="block w-full border-gray-300 focus:border-teal focus:ring-teal rounded-xl shadow-sm" />
+                                <x-password-input id="password-confirm" name="password_confirmation" class="w-full" required minlength="8" />
                             </div>
                         </div>
                         <div class="px-6 py-4 bg-gray-50 rounded-b-2xl flex justify-end gap-3">

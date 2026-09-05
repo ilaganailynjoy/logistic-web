@@ -385,11 +385,16 @@ class RiderDeliveryController extends Controller
         $controller = app(RiderController::class);
         $base = $controller->deliveryPayload($delivery);
 
-        $base['status_logs'] = $delivery->statusLogs->map(fn ($log) => [
-            'status' => $log->status,
-            'notes' => $log->notes,
-            'created_at' => $log->created_at?->toIso8601String(),
-        ])->values();
+        // Chronological (oldest first) by actual record timestamps, so every
+        // rider endpoint presents history in event order regardless of how
+        // the relation was eager-loaded.
+        $base['status_logs'] = $delivery->statusLogs
+            ->sortBy([['created_at', 'asc'], ['id', 'asc']])
+            ->map(fn ($log) => [
+                'status' => $log->status,
+                'notes' => $log->notes,
+                'created_at' => $log->created_at?->toIso8601String(),
+            ])->values();
 
         return $base;
     }

@@ -179,6 +179,7 @@ class RiderConversationController extends Controller
                     'stored_path' => $storedPath,
                     'mime_type' => $file->getMimeType(),
                     'file_size' => $file->getSize(),
+                    'disk' => 'public',
                 ]);
             }
             $conversation->update(['last_message_preview' => str($validated['body'])->limit(80), 'last_message_at' => now()]);

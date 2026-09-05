@@ -55,8 +55,8 @@
 
             <div class="mt-5 bg-teal-light/60 border border-teal/20 rounded-xl px-5 py-4 text-left">
                 <p class="text-sm text-gray-700 leading-relaxed">
-                    <span class="font-semibold text-teal-dark">Please contact the system administrator</span>
-                    to have your password reset. Once the administrator has reset it, sign in with the new password.
+                    <span class="font-semibold text-teal-dark">Please contact the Logistics Manager</span>
+                    to have your password reset. Once the Logistics Manager has reset it, sign in with the new password.
                 </p>
             </div>
 
@@ -73,5 +73,6 @@
         <p class="mt-6 text-center text-xs sm:text-sm text-gray-400">Logistics &middot; v1.0 &middot; Logistics</p>
     </div>
 </div>
+@include('layouts.partials.form-controls')
 </body>
 </html>
