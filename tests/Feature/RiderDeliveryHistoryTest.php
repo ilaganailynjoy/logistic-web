@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Mail\RiderAccountApprovedMail;
 use App\Models\Delivery;
 use App\Models\DeliveryStatusLog;
 use App\Models\LogisticsCenter;
@@ -11,6 +12,7 @@ use App\Models\ServiceArea;
 use App\Models\User;
 use App\Models\VehicleType;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Mail;
 use Tests\TestCase;
 
 /**
@@ -189,6 +191,7 @@ class RiderDeliveryHistoryTest extends TestCase
 
     public function test_approve_without_password_generates_one_time_credential(): void
     {
+        Mail::fake();
         $admin = $this->admin();
         $center = LogisticsCenter::create([
             'name' => 'History Center ' . uniqid(), 'address' => 'H St',
@@ -211,28 +214,36 @@ class RiderDeliveryHistoryTest extends TestCase
             'submitted_via' => 'mobile',
         ]);
 
-        $this->actingAs($admin)
+        $response = $this->actingAs($admin)
             ->post("/rider-applications/{$app->id}/approve", [
                 'center_id' => $center->id,
                 'service_area_id' => $area->id,
             ])
-            ->assertRedirect()
-            ->assertSessionHas('provisioned_credentials');
+            ->assertRedirect();
 
-        $creds = session('provisioned_credentials');
-        $this->assertSame($app->email, $creds['email']);
-        $this->assertTrue($creds['generated']);
-        $this->assertSame(12, strlen($creds['password']));
+        // The Manager must never see the generated password: it is not placed
+        // in any session flash, and never echoes back in the response.
+        $response->assertSessionMissing('provisioned_credentials');
+
+        // The rider receives the password through email only. This is the
+        // single legitimate place the plaintext exists (the mailable that is
+        // rendered and mailed to the applicant).
+        $sent = Mail::sent(RiderAccountApprovedMail::class)
+            ->first(fn ($mail) => $mail->application->id === $app->id);
+        $this->assertNotNull($sent);
+        $password = $sent->temporaryPassword;
+        $this->assertSame(12, strlen($password));
 
         // The one-time credential actually logs in; plaintext lives nowhere else.
         $this->postJson('/api/login', [
             'email' => $app->email,
-            'password' => $creds['password'],
+            'password' => $password,
         ])->assertOk()->assertJsonStructure(['token']);
 
         $user = User::where('email', $app->email)->first();
-        $this->assertTrue(Hash::check($creds['password'], $user->password));
-        $this->assertStringNotContainsString($creds['password'], (string) $user);
+        $this->assertTrue(Hash::check($password, $user->password));
+        $this->assertStringNotContainsString($password, (string) $user);
+        $this->assertStringNotContainsString($password, json_encode($app->fresh()->toArray()));
     }
 
     public function test_approve_short_password_rejected(): void

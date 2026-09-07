@@ -6,6 +6,7 @@ use App\Models\RiderApplication;
 use App\Models\RiderApplicationDocument;
 use App\Models\User;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
@@ -218,5 +219,130 @@ class RiderApplicationControllerTest extends TestCase
 
         $this->assertDatabaseHas('users', ['email' => $data['email'], 'role' => 'rider']);
         $this->assertDatabaseHas('riders', ['email' => $data['email']]);
+    }
+
+    public function test_resend_credentials_is_admin_only_and_never_a_get(): void
+    {
+        Storage::fake('local');
+        $data = $this->submitData('own', 'full_time');
+        $id = $this->post('/api/rider/apply', $data)->json('application.id');
+
+        $admin = User::create([
+            'name' => 'Resend Admin',
+            'first_name' => 'Resend',
+            'last_name' => 'Admin',
+            'sex' => 'male',
+            'email' => 'resend-admin-' . uniqid() . '@logistics.com',
+            'password' => bcrypt('password'),
+            'phone' => '09000000006',
+            'birthday' => '1990-01-01',
+            'age' => 35,
+            'role' => 'admin',
+            'status' => 'active',
+            'email_verified_at' => now(),
+        ]);
+
+        $center = \App\Models\LogisticsCenter::create([
+            'name' => 'Resend Center ' . uniqid(), 'address' => 'Addr',
+            'city' => 'City', 'province' => 'Prov', 'is_active' => true,
+        ]);
+        $area = \App\Models\ServiceArea::create([
+            'logistics_center_id' => $center->id, 'name' => 'Resend Area ' . uniqid(), 'is_active' => true,
+        ]);
+
+        $url = "/rider-applications/{$id}/resend-credentials";
+
+        // Unauthenticated POST is refused by the auth guard (redirected to login).
+        $this->post($url)->assertStatus(302);
+
+        // The action is state-changing and must never be available as a GET link.
+        $this->actingAs($admin)->get($url)->assertStatus(405);
+
+        // Provision the rider as admin, then capture the stored hash.
+        $this->actingAs($admin)->post("/rider-applications/{$id}/approve", [
+            'center_id' => $center->id,
+            'service_area_id' => $area->id,
+        ])->assertRedirect();
+        $before = User::where('email', $data['email'])->value('password');
+
+        // A staff user (not an admin) is blocked with 403: no mail, no change.
+        $staff = User::create([
+            'name' => 'Resend Staff',
+            'first_name' => 'Resend',
+            'last_name' => 'Staff',
+            'sex' => 'male',
+            'email' => 'resend-staff-' . uniqid() . '@logistics.com',
+            'password' => bcrypt('password'),
+            'phone' => '09000000007',
+            'birthday' => '1990-01-01',
+            'age' => 35,
+            'role' => 'staff',
+            'status' => 'active',
+            'email_verified_at' => now(),
+        ]);
+
+        Mail::fake();
+        $this->actingAs($staff)->post($url)->assertStatus(403);
+        Mail::assertNothingSent();
+        $this->assertSame($before, User::where('email', $data['email'])->value('password'));
+    }
+
+    public function test_show_page_renders_resend_form_only_for_provisioned_applications(): void
+    {
+        Storage::fake('local');
+        $data = $this->submitData('own', 'full_time');
+        $id = $this->post('/api/rider/apply', $data)->json('application.id');
+
+        $admin = User::create([
+            'name' => 'Show Admin',
+            'first_name' => 'Show',
+            'last_name' => 'Admin',
+            'sex' => 'male',
+            'email' => 'show-admin-' . uniqid() . '@logistics.com',
+            'password' => bcrypt('password'),
+            'phone' => '09000000008',
+            'birthday' => '1990-01-01',
+            'age' => 35,
+            'role' => 'admin',
+            'status' => 'active',
+            'email_verified_at' => now(),
+        ]);
+
+        // Pending application: the resend action must not exist on the page.
+        $pendingHtml = $this->actingAs($admin)
+            ->get("/rider-applications/{$id}")
+            ->assertOk()
+            ->getContent();
+        $this->assertStringNotContainsString('resend-credentials', $pendingHtml);
+
+        $center = \App\Models\LogisticsCenter::create([
+            'name' => 'Show Center ' . uniqid(), 'address' => 'Addr',
+            'city' => 'City', 'province' => 'Prov', 'is_active' => true,
+        ]);
+        $area = \App\Models\ServiceArea::create([
+            'logistics_center_id' => $center->id, 'name' => 'Show Area ' . uniqid(), 'is_active' => true,
+        ]);
+
+        $this->actingAs($admin)->post("/rider-applications/{$id}/approve", [
+            'center_id' => $center->id,
+            'service_area_id' => $area->id,
+        ])->assertRedirect();
+
+        // Approved + provisioned: the resend action appears as a POST form only.
+        $html = $this->actingAs($admin)
+            ->get("/rider-applications/{$id}")
+            ->assertOk()
+            ->getContent();
+
+        $resendRoute = route('rider-applications.resend-credentials', $id);
+
+        $this->assertStringContainsString('Resend Login Credentials', $html);
+        $this->assertStringContainsString('generate a new temporary password', $html);
+        $this->assertStringContainsString('rider\'s registered email address', $html);
+        $this->assertMatchesRegularExpression(
+            '/<form[^>]*action="[^"]*' . preg_quote($resendRoute, '/') . '"[^>]*method="POST"/',
+            $html
+        );
+        $this->assertStringNotContainsString('href="' . $resendRoute . '"', $html);
     }
 }

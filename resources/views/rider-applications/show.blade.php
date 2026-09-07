@@ -26,22 +26,6 @@
         </div>
     </div>
 
-    @if(session('provisioned_credentials'))
-        <div class="bg-emerald-50 rounded-2xl shadow-sm border border-emerald-200 p-6 mb-6">
-            <h3 class="text-base font-bold text-emerald-900 mb-1">Account provisioned — share these credentials now</h3>
-            <p class="text-sm text-emerald-800">Login email: <span class="font-mono font-semibold">{{ session('provisioned_credentials')['email'] }}</span></p>
-            @if(!empty(session('provisioned_credentials')['password']))
-                <p class="mt-2 text-sm text-emerald-800">Temporary initial password:
-                    <span class="font-mono font-bold text-base tracking-wider">{{ session('provisioned_credentials')['password'] }}</span>
-                </p>
-                <p class="mt-1 text-xs text-emerald-700">This password is shown only once — it will not be displayed again. Communicate it to the rider through a secure channel.</p>
-            @else
-                <p class="mt-1 text-xs text-emerald-700">Use the initial password you set on the approval form.</p>
-            @endif
-            <p class="mt-2 text-xs font-semibold text-emerald-800">Ask the rider to change it after first login (Rider App → Profile → Change Password).</p>
-        </div>
-    @endif
-
     <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-6">
         <div class="flex flex-col sm:flex-row items-start sm:items-center gap-5">
             <div class="h-16 w-16 rounded-full bg-teal flex items-center justify-center text-2xl font-bold text-white flex-shrink-0">
@@ -228,6 +212,24 @@
                     </div>
                 </form>
             </div>
+        </div>
+    @endif
+
+    {{-- Resend login credentials (approved & provisioned riders only) --}}
+    @if($application->status === 'approved' && $application->provisioned_at)
+        <div class="bg-white rounded-2xl shadow-sm border border-teal-100 p-6 mb-6">
+            <h3 class="text-base font-bold text-gray-900 mb-1">Resend Login Credentials</h3>
+            <p class="text-sm text-gray-500 mb-5">This will generate a new temporary password and send new login credentials to the rider's registered email address (<span class="font-medium text-gray-700">{{ $application->email }}</span>). The previous temporary password will stop working.</p>
+            <form action="{{ route('rider-applications.resend-credentials', $application) }}" method="POST"
+                  x-data x-on:submit.prevent="if (confirm('Resend login credentials? This will generate a new temporary password and send new login credentials to the registered rider email address.')) $el.submit()">
+                @csrf
+                <div class="flex justify-end">
+                    <button type="submit" class="inline-flex items-center gap-2 bg-teal hover:bg-teal-dark text-white font-semibold px-5 py-2.5 rounded-xl transition shadow-sm">
+                        <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                        Resend Login Credentials
+                    </button>
+                </div>
+            </form>
         </div>
     @endif
 

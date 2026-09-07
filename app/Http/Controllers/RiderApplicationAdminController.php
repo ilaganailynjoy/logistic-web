@@ -11,6 +11,7 @@ use App\Models\User;
 use App\Services\RiderAccountProvisioner;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rules\Password;
@@ -90,15 +91,10 @@ class RiderApplicationAdminController extends Controller
         $this->ensureAdministrator($admin);
 
         // A blank password field means "auto-generate a secure temporary
-        // initial password". It is hashed by the provisioner and shown to
-        // the manager exactly once via flash below — never stored or logged
-        // in plaintext anywhere.
-        $generated = false;
-        $password = $validated['password'] ?? null;
-        if ($password === null || $password === '') {
-            $password = Str::random(12);
-            $generated = true;
-        }
+        // initial password". It is hashed by the provisioner and delivered to
+        // the rider by email; it is never stored, logged, or flashed to the
+        // manager in plaintext.
+        $password = $validated['password'] ?? Str::random(12);
 
         $rider = $this->provisioner->approve($application, $admin, [
             'password' => $password,
@@ -128,14 +124,58 @@ class RiderApplicationAdminController extends Controller
 
         return redirect()
             ->route('rider-applications.show', $application)
-            ->with('success', $success)
-            ->with('provisioned_credentials', [
-                'email' => $rider->email,
-                'generated' => $generated,
-                // Present only when auto-generated; a manager-typed password
-                // is never echoed back.
-                'password' => $generated ? $password : null,
-            ]);
+            ->with('success', $success);
+    }
+
+    /**
+     * Resend the rider's login credentials.
+     *
+     * For an already approved and provisioned rider only. A brand-new secure
+     * temporary password is generated, stored on the rider's users row as a
+     * hash (never plaintext, never logged, never in a URL, notification, or
+     * the API, or the Manager UI), and mailed to the applicant's registered
+     * email. The previous temporary password is rotated out immediately. If
+     * delivery fails, the rider account is kept and the manager is told to
+     * use a secure alternative channel.
+     */
+    public function resendCredentials(Request $request, RiderApplication $application): RedirectResponse
+    {
+        $this->ensureAdministrator($request->user());
+
+        abort_unless(
+            $application->status === 'approved' && $application->provisioned_at !== null,
+            422,
+            'Only approved and provisioned rider accounts can have their credentials resent.'
+        );
+
+        $user = User::where('email', $application->email)->where('role', 'rider')->first();
+
+        abort_unless($user instanceof User, 422, 'No provisioned rider account exists for this application.');
+
+        $password = Str::random(12);
+
+        $user->update(['password' => Hash::make($password)]);
+
+        // Identical to the approval send: the plaintext password lives only in
+        // memory for this single mailable and is discarded afterwards. If
+        // delivery fails the rider account is never deleted.
+        $mailSent = false;
+        try {
+            Mail::to($application->email)->send(
+                new RiderAccountApprovedMail($application->fresh(), $password)
+            );
+            $mailSent = true;
+        } catch (\Throwable $e) {
+            report($e);
+        }
+
+        $message = $mailSent
+            ? "New login credentials have been generated and sent to: {$application->email}"
+            : "New login credentials could not be emailed to {$application->email}. Please contact the rider through a secure channel.";
+
+        return redirect()
+            ->route('rider-applications.show', $application)
+            ->with('success', $message);
     }
 
     public function reject(Request $request, RiderApplication $application): RedirectResponse

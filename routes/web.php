@@ -52,6 +52,7 @@ Route::middleware(['auth', 'verified', 'staff'])->group(function () {
         Route::get('rider-applications/documents/{document}/download', [RiderApplicationAdminController::class, 'downloadDocument'])->name('rider-applications.documents.download');
         Route::get('rider-applications/{application}', [RiderApplicationAdminController::class, 'show'])->name('rider-applications.show');
         Route::post('rider-applications/{application}/approve', [RiderApplicationAdminController::class, 'approve'])->name('rider-applications.approve');
+        Route::post('rider-applications/{application}/resend-credentials', [RiderApplicationAdminController::class, 'resendCredentials'])->name('rider-applications.resend-credentials');
         Route::post('rider-applications/{application}/reject', [RiderApplicationAdminController::class, 'reject'])->name('rider-applications.reject');
     });
 

@@ -85,25 +85,35 @@ class RiderApprovalMailTest extends TestCase
         Mail::fake();
         $app = $this->application();
 
-        $this->approve($app)->assertRedirect();
+        $response = $this->approve($app)->assertRedirect();
 
         $this->assertSame('approved', $app->fresh()->status);
-        $creds = session('provisioned_credentials');
-        $this->assertTrue($creds['generated']);
 
-        Mail::assertSent(RiderAccountApprovedMail::class, function ($mail) use ($app, $creds) {
-            if ($mail->application->id !== $app->id) return false;
-            if ($mail->temporaryPassword !== $creds['password']) return false;
+        // The Manager must never see the plaintext password: it must not be in
+        // the response body nor in any session flash.
+        $this->assertStringNotContainsString('temporaryPassword', $response->getContent());
+        $response->assertSessionMissing('provisioned_credentials');
 
-            $html = $mail->render();
+        $sent = Mail::sent(RiderAccountApprovedMail::class)
+            ->first(fn ($mail) => $mail->application->id === $app->id);
 
-            return $mail->hasTo($app->email)
-                && $mail->hasSubject('INVOIZ Rider Account Approved – Login Credentials')
-                && str_contains($html, $app->email)
-                && str_contains($html, $creds['password'])
-                && str_contains($html, RiderAccountApprovedMail::referenceFor($app->fresh()))
-                && str_contains($html, 'change your temporary password after your first successful login');
-        });
+        $this->assertNotNull($sent);
+        $sentPassword = $sent->temporaryPassword;
+        $html = $sent->render();
+
+        $this->assertTrue($sent->hasTo($app->email));
+        $this->assertTrue($sent->hasSubject('INVOIZ Rider Account Approved – Login Credentials'));
+        $this->assertStringContainsString($app->email, $html);
+        $this->assertStringContainsString($sentPassword, $html);
+        $this->assertStringContainsString(RiderAccountApprovedMail::referenceFor($app->fresh()), $html);
+        $this->assertStringContainsString('change your temporary password after your first successful login', $html);
+
+        // The rider still receives the password through email (the mailable
+        // carries it) while the database holds only the hash.
+        $user = User::where('email', $app->email)->first();
+        $this->assertTrue(Hash::check($sentPassword, $user->password));
+        $this->assertStringNotContainsString($sentPassword, json_encode($user->toArray()));
+        $this->assertStringNotContainsString($sentPassword, json_encode($app->fresh()->toArray()));
     }
 
     public function test_supplied_password_is_mailed_but_never_persisted(): void
@@ -163,6 +173,146 @@ class RiderApprovalMailTest extends TestCase
         )->assertOk()->assertJsonPath('application.status', 'approved');
 
         $this->assertStringNotContainsString($secret, $response->getContent());
+    }
+
+    public function test_resend_rotates_password_and_mails_only_to_applicant_email(): void
+    {
+        Mail::fake();
+        $app = $this->application();
+        $oldSecret = 'OldTemp-2026!';
+
+        $this->approve($app, [
+            'password' => $oldSecret,
+            'password_confirmation' => $oldSecret,
+        ])->assertRedirect();
+
+        $response = $this->post("/rider-applications/{$app->id}/resend-credentials")->assertRedirect();
+
+        // The Manager must never see the new plaintext password: not in the
+        // response body, not in any session flash.
+        $this->assertStringNotContainsString('temporaryPassword', $response->getContent());
+        $response->assertSessionMissing('provisioned_credentials');
+
+        // Extract the new password from the *resent* (latest) mailable — the
+        // only legitimate place it exists, and distinct from the approval mail.
+        $resent = Mail::sent(RiderAccountApprovedMail::class)
+            ->last(function ($mail) use ($app) { return $mail->application->id === $app->id; });
+        $this->assertNotNull($resent);
+        $newSecret = $resent->temporaryPassword;
+        $this->assertNotSame($oldSecret, $newSecret);
+
+        $user = User::where('email', $app->email)->first();
+
+        // Old temporary password is rotated out; only the new one verifies
+        // against the stored (already hashed) password.
+        $this->assertTrue(Hash::check($newSecret, $user->password));
+        $this->assertFalse(Hash::check($oldSecret, $user->password));
+
+        // Plaintext is never persisted anywhere (DB rows, applications,
+        // notifications) and never exposed through the status API.
+        $this->assertStringNotContainsString($newSecret, json_encode($user->toArray()));
+        $this->assertStringNotContainsString($newSecret, json_encode($app->fresh()->toArray()));
+        foreach (Notification::all() as $notification) {
+            $this->assertStringNotContainsString($newSecret, json_encode($notification->toArray()));
+        }
+        $this->getJson('/api/rider/application-status?email=' . urlencode($app->email))
+            ->assertOk()
+            ->assertJsonMissing(['password' => $newSecret]);
+
+        $html = $resent->render();
+        $this->assertTrue($resent->hasTo($app->email));
+        $this->assertSame($newSecret, $resent->temporaryPassword);
+        $this->assertNotSame($oldSecret, $resent->temporaryPassword);
+        $this->assertStringContainsString($newSecret, $html);
+        $this->assertStringNotContainsString($oldSecret, $html);
+
+        // The resent message relies solely on the configured From (the INVOIZ
+        // system Gmail) and never overrides the sender address itself.
+        $this->assertEmpty($resent->from);
+    }
+
+    public function test_resend_mail_failure_keeps_account_and_never_reveals_password(): void
+    {
+        Mail::fake();
+        $app = $this->application();
+        $oldSecret = 'KeepOld-2026!';
+
+        $this->approve($app, [
+            'password' => $oldSecret,
+            'password_confirmation' => $oldSecret,
+        ])->assertRedirect();
+
+        // Simulate a transport-level failure during the resend send, exactly
+        // like an SMTP outage. The exception carries no password material.
+        $thrower = new class {
+            public function send($mailable): void
+            {
+                throw new \RuntimeException('Simulated SMTP outage during resend');
+            }
+        };
+        Mail::shouldReceive('to')->once()->andReturn($thrower);
+
+        // report($e) in the controller logs the exception; assert it never
+        // contains the plaintext password.
+        Log::shouldReceive('error')->once()->with(
+            \Mockery::on(fn ($subject) => ! str_contains((string) $subject, 'KeepOld-2026!')),
+            \Mockery::any()
+        );
+
+        $response = $this->post("/rider-applications/{$app->id}/resend-credentials")
+            ->assertRedirect()
+            ->assertSessionHas('success');
+
+        // The Manager must never see the password even on failure — not in the
+        // session flash and not in the success warning message.
+        $response->assertSessionMissing('provisioned_credentials');
+        $success = session('success');
+        $this->assertStringContainsString('could not be emailed to ' . $app->email, $success);
+        $this->assertStringNotContainsString('KeepOld-2026!', $success);
+
+        // The rider account is kept (never deleted), and the old temporary
+        // password was rotated out even though delivery failed.
+        $this->assertSame('approved', $app->fresh()->status);
+        $user = User::where('email', $app->email)->first();
+        $this->assertNotNull($user);
+        $this->assertNotNull(Rider::where('email', $app->email)->first());
+        $this->assertFalse(Hash::check($oldSecret, $user->password));
+
+        // Plaintext is never persisted anywhere.
+        $this->assertStringNotContainsString('KeepOld-2026!', json_encode($app->fresh()->toArray()));
+        $this->assertStringNotContainsString('KeepOld-2026!', json_encode($user->toArray()));
+        foreach (Notification::all() as $notification) {
+            $this->assertStringNotContainsString('KeepOld-2026!', json_encode($notification->toArray()));
+        }
+    }
+
+    public function test_resend_requires_approved_provisioned_application(): void
+    {
+        Mail::fake();
+        $app = $this->application();
+        $admin = $this->admin();
+
+        // A pending application can never have credentials resent.
+        $this->actingAs($admin)
+            ->post("/rider-applications/{$app->id}/resend-credentials")
+            ->assertStatus(422);
+        Mail::assertNothingSent();
+        $this->assertSame('pending', $app->fresh()->status);
+    }
+
+    public function test_resend_requires_provisioning_even_when_approved(): void
+    {
+        Mail::fake();
+        $app = $this->application();
+        $app->update(['status' => 'approved', 'provisioned_at' => null]);
+        $admin = $this->admin();
+
+        $this->actingAs($admin)
+            ->post("/rider-applications/{$app->id}/resend-credentials")
+            ->assertStatus(422);
+
+        Mail::assertNothingSent();
+        $this->assertNull(User::where('email', $app->email)->first());
     }
 
     public function test_email_failure_keeps_account_and_shows_safe_warning(): void
