@@ -22,42 +22,50 @@ class RiderConversationController extends Controller
 
     private function ensureConversationsForRider(int $riderId, int $userId): void
     {
-        // Ensure logistics conversation exists (already handled by RiderMessageController)
-        // For each active delivery, ensure seller/buyer conversations exist
-        $deliveries = Delivery::where('rider_id', $riderId)->whereNotNull('order_id')->with(['items'])->get();
+        // Rider support (logistics) thread.
+        Conversation::firstOrCreate(
+            ['participant_type' => 'rider', 'participant_id' => $userId],
+            [
+                'participant_name' => \App\Models\User::find($userId)?->name ?? 'Rider',
+                'subject' => 'Rider Support',
+                'last_message_at' => now(),
+                'rider_id' => $riderId,
+            ]
+        );
+
+        // Per-delivery seller/buyer threads. Data is read-only from the shared
+        // orders / order_items tables; missing or orphaned rows are skipped so
+        // a partial shared database never breaks the conversation list.
+        $deliveries = Delivery::where('rider_id', $riderId)->whereNotNull('order_id')->get();
         foreach ($deliveries as $delivery) {
             $order = Order::find($delivery->order_id);
-            if (!$order) continue;
+            if (! $order) {
+                continue;
+            }
+
             // Buyer
-            $buyerId = $order->buyer_id;
-            $buyer = \App\Models\User::find($buyerId);
+            $buyer = $order->buyer;
             if ($buyer) {
                 Conversation::firstOrCreate(
-                    ['order_id' => $order->id, 'rider_id' => $riderId, 'participant_type' => 'buyer', 'participant_id' => $buyerId],
+                    ['order_id' => $order->id, 'rider_id' => $riderId, 'participant_type' => 'buyer', 'participant_id' => $buyer->id],
                     ['participant_name' => $buyer->name, 'subject' => 'Delivery ' . $delivery->tracking_number, 'last_message_at' => now()]
                 );
             }
-            // Seller(s) - one per distinct seller in order_items
-            $sellerIds = $delivery->items->pluck('seller_id')->unique()->filter();
-            // Fallback to order's seller if items empty
-            if ($sellerIds->isEmpty() && isset($order->seller_id)) $sellerIds = collect([$order->seller_id]);
+
+            // Seller(s) — one per distinct seller in the shared order_items.
+            $sellerIds = $order->items->pluck('seller_id')->unique()->filter();
             foreach ($sellerIds as $sid) {
                 $seller = \App\Models\User::find($sid);
-                if (!$seller) continue;
-                $sellerName = $seller->name;
-                // Try to get store name if seller has seller profile
-                if ($seller->seller) $sellerName = $seller->seller->business_name ?? $sellerName;
+                if (! $seller) {
+                    continue;
+                }
+                $sellerName = $seller->seller->business_name ?? $seller->name;
                 Conversation::firstOrCreate(
                     ['order_id' => $order->id, 'rider_id' => $riderId, 'participant_type' => 'seller', 'participant_id' => $sid],
                     ['participant_name' => $sellerName, 'subject' => 'Delivery ' . $delivery->tracking_number, 'last_message_at' => now()]
                 );
             }
         }
-        // Also logistics conversation
-        Conversation::firstOrCreate(
-            ['participant_type' => 'rider', 'participant_id' => $userId],
-            ['participant_name' => \App\Models\User::find($userId)?->name ?? 'Rider', 'subject' => 'Rider Support', 'last_message_at' => now(), 'rider_id' => $riderId]
-        );
     }
 
     private function authorizeConversation(Request $request, Conversation $conv): void

@@ -8,7 +8,7 @@
             ['label' => 'Picked Up', 'status' => 'picked_up'],
             ['label' => 'Out for Delivery', 'status' => 'out_for_delivery'],
             ['label' => 'Delivered', 'status' => 'delivered'],
-            ['label' => 'Failed', 'status' => 'failed'],
+            ['label' => 'Failed', 'status' => 'delivery_failed'],
             ['label' => 'Cancelled', 'status' => 'cancelled'],
         ];
         $tabUrl = fn ($status) => route('deliveries.index', collect(request()->query())->except('page')->merge(['status' => $status])->filter(fn ($v) => $v !== null && $v !== '')->all());

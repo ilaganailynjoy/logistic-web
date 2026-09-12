@@ -9,11 +9,28 @@
                 </a>
                 <div>
                     <h1 class="text-2xl font-bold text-gray-900">Rider Details</h1>
-                    <p class="mt-0.5 text-sm text-gray-500">Operational directory (read-only)</p>
+                    <p class="mt-0.5 text-sm text-gray-500">Rider management</p>
                 </div>
             </div>
             <div class="flex flex-wrap items-center gap-3">
                 <x-status-badge :status="$rider->status" />
+                @if(Auth::user()->isAdmin() || Auth::user()->center_id == $rider->center_id)
+                    @if($rider->status === 'inactive')
+                        <form action="{{ route('riders.activate', $rider) }}" method="POST">
+                            @csrf
+                            <button type="submit" class="bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2 rounded-xl text-sm font-semibold transition shadow-sm whitespace-nowrap">
+                                Activate Rider
+                            </button>
+                        </form>
+                    @else
+                        <form action="{{ route('riders.deactivate', $rider) }}" method="POST" x-data x-on:submit.prevent="if (confirm('Deactivate {{ $rider->name }}? Existing deliveries will be preserved.')) $el.submit()">
+                            @csrf
+                            <button type="submit" class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-xl text-sm font-semibold transition shadow-sm whitespace-nowrap">
+                                Deactivate
+                            </button>
+                        </form>
+                    @endif
+                @endif
             </div>
         </div>
     </x-slot>

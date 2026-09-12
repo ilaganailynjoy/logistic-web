@@ -7,6 +7,12 @@
     $userEmail = $user->email ?? '';
     $userInitial = substr($userName, 0, 1);
     $accountTitle = $user->role === 'admin' ? $user->roleLabel() : $userName;
+    $pickupPendingCount = ($isAdmin || $isStaff)
+        ? \App\Models\PickupRequest::query()
+            ->where('status', 'pending')
+            ->when($isStaff, fn ($q) => $q->whereNotNull('center_id')->where('center_id', $user->center_id))
+            ->count()
+        : 0;
 @endphp
 
 <div x-on:mouseenter="openSidebarHover()" x-on:mouseleave="closeSidebarHover()">
@@ -44,6 +50,17 @@
             <span class="pointer-events-none absolute left-full ml-3 top-1/2 -translate-y-1/2 px-2.5 py-1 bg-gray-900 text-white text-xs font-medium rounded-lg whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity z-50">Riders</span>
         </a>
 
+        {{-- Pickup Requests --}}
+        <a href="{{ route('pickup-requests.index') }}" class="relative group flex items-center justify-center w-11 h-11 rounded-xl transition-colors {{ request()->routeIs('pickup-requests.*') ? 'bg-teal-light text-teal-dark' : 'text-gray-400 hover:bg-gray-100 hover:text-gray-700' }}">
+            <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+            </svg>
+            @if($pickupPendingCount > 0)
+                <span class="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center">{{ $pickupPendingCount }}</span>
+            @endif
+            <span class="pointer-events-none absolute left-full ml-3 top-1/2 -translate-y-1/2 px-2.5 py-1 bg-gray-900 text-white text-xs font-medium rounded-lg whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity z-50">Pickups</span>
+        </a>
+
         @if($isAdmin)
         {{-- Staff --}}
         <a href="{{ route('staff.index') }}" class="relative group flex items-center justify-center w-11 h-11 rounded-xl transition-colors {{ request()->routeIs('staff.*') ? 'bg-teal-light text-teal-dark' : 'text-gray-400 hover:bg-gray-100 hover:text-gray-700' }}">
@@ -59,6 +76,14 @@
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
             </svg>
             <span class="pointer-events-none absolute left-full ml-3 top-1/2 -translate-y-1/2 px-2.5 py-1 bg-gray-900 text-white text-xs font-medium rounded-lg whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity z-50">Applications</span>
+        </a>
+
+        {{-- Center Applications --}}
+        <a href="{{ route('center-applications.index') }}" class="relative group flex items-center justify-center w-11 h-11 rounded-xl transition-colors {{ request()->routeIs('center-applications.*') ? 'bg-teal-light text-teal-dark' : 'text-gray-400 hover:bg-gray-100 hover:text-gray-700' }}">
+            <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 14v3m4-3v3m4-3v3M3 21h18M3 10h18M9 10V3h6v7M3 14h18" />
+            </svg>
+            <span class="pointer-events-none absolute left-full ml-3 top-1/2 -translate-y-1/2 px-2.5 py-1 bg-gray-900 text-white text-xs font-medium rounded-lg whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity z-50">Center Apps</span>
         </a>
 
         {{-- Centers --}}
@@ -186,6 +211,15 @@
             Riders
         </a>
 
+        {{-- Pickup Requests --}}
+        <a href="{{ route('pickup-requests.index') }}" class="flex items-center gap-3 h-11 pl-6 pr-3 rounded-xl text-sm font-medium transition-colors {{ request()->routeIs('pickup-requests.*') ? 'bg-teal-light text-teal-dark' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900' }}">
+            <svg class="h-5 w-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" /></svg>
+            Pickup Requests
+            @if($pickupPendingCount > 0)
+                <span class="ml-auto inline-flex items-center px-2 py-0.5 rounded-full bg-red-50 text-red-600 text-xs font-bold ring-1 ring-inset ring-red-200">{{ $pickupPendingCount }}</span>
+            @endif
+        </a>
+
         @if($isAdmin)
         {{-- Staff --}}
         <a href="{{ route('staff.index') }}" class="flex items-center gap-3 h-11 pl-6 pr-3 rounded-xl text-sm font-medium transition-colors {{ request()->routeIs('staff.*') ? 'bg-teal-light text-teal-dark' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900' }}">
@@ -197,6 +231,12 @@
         <a href="{{ route('rider-applications.index') }}" class="flex items-center gap-3 h-11 pl-6 pr-3 rounded-xl text-sm font-medium transition-colors {{ request()->routeIs('rider-applications.*') ? 'bg-teal-light text-teal-dark' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900' }}">
             <svg class="h-5 w-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
             Applications
+        </a>
+
+        {{-- Center Applications --}}
+        <a href="{{ route('center-applications.index') }}" class="flex items-center gap-3 h-11 pl-6 pr-3 rounded-xl text-sm font-medium transition-colors {{ request()->routeIs('center-applications.*') ? 'bg-teal-light text-teal-dark' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900' }}">
+            <svg class="h-5 w-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 14v3m4-3v3m4-3v3M3 21h18M3 10h18M9 10V3h6v7M3 14h18" /></svg>
+            Center Applications
         </a>
 
         {{-- Centers --}}

@@ -106,4 +106,35 @@ class Rider extends Model
     {
         return $this->approved_at !== null;
     }
+
+    /**
+     * The rider must belong to the same logistics center as the delivery
+     * destination. If the delivery has no destination yet the rule cannot
+     * apply, so it does not block legacy or pre-sorting assignments.
+     */
+    public function matchesDestinationCenter(Delivery $delivery): bool
+    {
+        if ($delivery->destination_center_id === null) {
+            return true;
+        }
+
+        if ($this->center_id === null) {
+            return false;
+        }
+
+        return (int) $this->center_id === (int) $delivery->destination_center_id;
+    }
+
+    /**
+     * The rider must match the delivery service area, but only when both
+     * sides actually have a service area assigned.
+     */
+    public function matchesServiceArea(Delivery $delivery): bool
+    {
+        if ($this->service_area_id === null || $delivery->service_area_id === null) {
+            return true;
+        }
+
+        return (int) $this->service_area_id === (int) $delivery->service_area_id;
+    }
 }

@@ -15,6 +15,8 @@ use App\Http\Controllers\ServiceAreaController;
 use App\Http\Controllers\TransactionController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\RiderApplicationAdminController;
+use App\Http\Controllers\CenterApplicationAdminController;
+use App\Http\Controllers\PickupRequestController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
@@ -34,6 +36,7 @@ Route::middleware(['auth', 'verified', 'staff'])->group(function () {
     Route::post('deliveries/{delivery}/receive', [DeliveryController::class, 'receive'])->name('deliveries.receive');
     Route::patch('deliveries/{delivery}/scan', [DeliveryController::class, 'scan'])->name('deliveries.scan');
     Route::post('deliveries/{delivery}/sort', [DeliveryController::class, 'sort'])->name('deliveries.sort');
+    Route::post('deliveries/{delivery}/dispatch', [DeliveryController::class, 'dispatch'])->name('deliveries.dispatch');
 
     // ── Archived Deliveries (Admin Only) ────────────────────
     Route::get('deliveries-archived', [DeliveryController::class, 'archived'])->name('deliveries.archived');
@@ -41,9 +44,17 @@ Route::middleware(['auth', 'verified', 'staff'])->group(function () {
     Route::post('deliveries/{delivery}/restore', [DeliveryController::class, 'restore'])->name('deliveries.restore');
     Route::delete('deliveries/{delivery}', [DeliveryController::class, 'destroy'])->name('deliveries.destroy');
 
-    // ── Riders (Read-Only Directory) ────────────────────────
+    // ── Riders (Directory + Management) ─────────────────────────
     Route::get('riders', [RiderController::class, 'index'])->name('riders.index');
     Route::get('riders/{rider}', [RiderController::class, 'show'])->name('riders.show');
+    Route::post('riders/{rider}/activate', [RiderController::class, 'activate'])->name('riders.activate');
+    Route::post('riders/{rider}/deactivate', [RiderController::class, 'deactivate'])->name('riders.deactivate');
+
+    // ── Pickup Requests (staff: approve/reject pickups at their center) ──
+    Route::get('pickup-requests', [PickupRequestController::class, 'index'])->name('pickup-requests.index');
+    Route::get('pickup-requests/{pickupRequest}', [PickupRequestController::class, 'show'])->name('pickup-requests.show');
+    Route::post('pickup-requests/{pickupRequest}/approve', [PickupRequestController::class, 'approve'])->name('pickup-requests.approve');
+    Route::post('pickup-requests/{pickupRequest}/reject', [PickupRequestController::class, 'reject'])->name('pickup-requests.reject');
 
     // ── Rider Applications (Admin Only: review & provision) ─
     Route::middleware('admin')->group(function () {
@@ -54,6 +65,17 @@ Route::middleware(['auth', 'verified', 'staff'])->group(function () {
         Route::post('rider-applications/{application}/approve', [RiderApplicationAdminController::class, 'approve'])->name('rider-applications.approve');
         Route::post('rider-applications/{application}/resend-credentials', [RiderApplicationAdminController::class, 'resendCredentials'])->name('rider-applications.resend-credentials');
         Route::post('rider-applications/{application}/reject', [RiderApplicationAdminController::class, 'reject'])->name('rider-applications.reject');
+    });
+
+    // ── Logistics Center Applications (Admin Only: review & provision) ─
+    Route::middleware('admin')->group(function () {
+        Route::get('center-applications', [CenterApplicationAdminController::class, 'index'])->name('center-applications.index');
+        Route::get('center-applications/documents/{document}/view', [CenterApplicationAdminController::class, 'viewDocument'])->name('center-applications.documents.view');
+        Route::get('center-applications/documents/{document}/download', [CenterApplicationAdminController::class, 'downloadDocument'])->name('center-applications.documents.download');
+        Route::get('center-applications/{application}', [CenterApplicationAdminController::class, 'show'])->name('center-applications.show');
+        Route::post('center-applications/{application}/approve', [CenterApplicationAdminController::class, 'approve'])->name('center-applications.approve');
+        Route::post('center-applications/{application}/resend-credentials', [CenterApplicationAdminController::class, 'resendCredentials'])->name('center-applications.resend-credentials');
+        Route::post('center-applications/{application}/reject', [CenterApplicationAdminController::class, 'reject'])->name('center-applications.reject');
     });
 
     // ── Staff Management (Admin Only) ───────────────────────

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\RiderApplication;
 use App\Models\RiderApplicationDocument;
+use App\Models\RiderEmailVerification;
 use App\Models\Notification;
 use App\Models\VehicleType;
 use App\Rules\PhilippinePhone;
@@ -32,9 +33,17 @@ class RiderApplicationController extends Controller
 
         $data = $request->validate([
             'name' => 'required|string|max:255',
+            'middle_initial' => 'nullable|string|max:5',
+            'sex' => 'nullable|in:male,female,other',
+            'birthday' => 'nullable|date|before:today',
             'email' => 'required|email|max:255|unique:riders,email',
             'phone' => ['required', new PhilippinePhone, 'unique:rider_applications,phone'],
             'address' => 'required|string|max:500',
+            'house_number' => 'nullable|string|max:50',
+            'street' => 'nullable|string|max:255',
+            'barangay' => 'nullable|string|max:255',
+            'municipality' => 'nullable|string|max:255',
+            'province' => 'nullable|string|max:255',
             'vehicle_type' => 'required|in:' . implode(',', array_keys(VehicleType::activeLabels())),
             'license_plate' => 'required|string|max:20',
             'license_number' => 'required|string|max:100',
@@ -53,12 +62,36 @@ class RiderApplicationController extends Controller
             'vehicle_ownership' => 'nullable|in:own,borrowed,second_hand,financing',
         ]);
 
+        // Server-side gate: the submitted address must have completed OTP
+        // verification. Checked against our own records — the client cannot
+        // bypass this with a flag.
+        if (! RiderEmailVerification::isVerified($data['email'])) {
+            return response()->json([
+                'message' => 'Please verify your email address before submitting your rider application.',
+                'errors' => [
+                    'email' => ['Please verify your email address before submitting your rider application.'],
+                ],
+            ], 422);
+        }
+
         $data['phone'] = PhilippinePhone::normalize($data['phone']);
         $data['status'] = 'pending';
         $data['documents'] = [];
         $data['submitted_via'] = 'mobile';
         $data['rider_type'] = $data['rider_type'] ?? 'full_time';
         $data['vehicle_ownership'] = $data['vehicle_ownership'] ?? null;
+
+        if (!empty($data['birthday'])) {
+            $data['age'] = (int) \Carbon\Carbon::parse($data['birthday'])->age;
+            if ($data['age'] < 18) {
+                return response()->json([
+                    'message' => 'You must be at least 18 years old to apply as a rider.',
+                    'errors' => [
+                        'birthday' => ['You must be at least 18 years old to apply as a rider.'],
+                    ],
+                ], 422);
+            }
+        }
 
         $application = DB::transaction(function () use ($data, $request) {
             $app = RiderApplication::create($data);

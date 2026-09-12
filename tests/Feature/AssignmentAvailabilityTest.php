@@ -147,6 +147,94 @@ class AssignmentAvailabilityTest extends TestCase
         );
     }
 
+    public function test_out_of_center_rider_cannot_be_assigned(): void
+    {
+        $admin = $this->user();
+        $centerA = $this->center();
+        $centerB = $this->center();
+        $rider = $this->rider($centerA, null, ['is_online' => true]);
+        $delivery = $this->delivery(['destination_center_id' => $centerB->id]);
+
+        $response = $this->actingAs($admin)
+            ->post(route('deliveries.assign-rider', $delivery), ['rider_id' => $rider->id]);
+
+        $response->assertSessionHasErrors('rider_id');
+
+        $delivery->refresh();
+        $this->assertNull($delivery->rider_id);
+        $this->assertEquals('waiting_for_rider', $delivery->status);
+    }
+
+    public function test_service_area_mismatch_blocks_assignment(): void
+    {
+        $admin = $this->user();
+        $center = $this->center();
+        $areaA = $this->area($center);
+        $areaB = $this->area($center);
+        $rider = $this->rider($center, $areaA, ['is_online' => true]);
+        $delivery = $this->delivery(['destination_center_id' => $center->id, 'service_area_id' => $areaB->id]);
+
+        $response = $this->actingAs($admin)
+            ->post(route('deliveries.assign-rider', $delivery), ['rider_id' => $rider->id]);
+
+        $response->assertSessionHasErrors('rider_id');
+
+        $delivery->refresh();
+        $this->assertNull($delivery->rider_id);
+        $this->assertEquals('waiting_for_rider', $delivery->status);
+    }
+
+    public function test_destination_center_rider_is_assignable(): void
+    {
+        $admin = $this->user();
+        $center = $this->center();
+        $area = $this->area($center);
+        $rider = $this->rider($center, $area, ['is_online' => true]);
+        $delivery = $this->delivery(['destination_center_id' => $center->id, 'service_area_id' => $area->id]);
+
+        $this->actingAs($admin)
+            ->post(route('deliveries.assign-rider', $delivery), ['rider_id' => $rider->id]);
+
+        $delivery->refresh();
+        $this->assertEquals($rider->id, $delivery->rider_id);
+        $this->assertEquals('assigned', $delivery->status);
+    }
+
+    public function test_delivery_show_marks_out_of_center_and_out_of_area_riders_ineligible(): void
+    {
+        $admin = $this->user();
+        $centerA = $this->center();
+        $centerB = $this->center();
+        $areaB = $this->area($centerB);
+        $otherArea = $this->area($centerB);
+
+        $outOfCenter = $this->rider($centerA, null, ['is_online' => true]);
+        $outOfArea = $this->rider($centerB, $otherArea, ['is_online' => true]);
+        $matchRider = $this->rider($centerB, $areaB, ['is_online' => true]);
+
+        $delivery = $this->delivery([
+            'destination_center_id' => $centerB->id,
+            'service_area_id' => $areaB->id,
+        ]);
+
+        $response = $this->actingAs($admin)->get(route('deliveries.show', $delivery));
+        $response->assertOk();
+
+        $eligibility = collect($response->viewData('riderEligibility'));
+
+        $outOfCenterRow = $eligibility->firstWhere('rider.id', $outOfCenter->id);
+        $outOfAreaRow = $eligibility->firstWhere('rider.id', $outOfArea->id);
+        $matchRow = $eligibility->firstWhere('rider.id', $matchRider->id);
+
+        $this->assertFalse($outOfCenterRow['eligible']);
+        $this->assertStringContainsString('Different logistics center', $outOfCenterRow['reason']);
+
+        $this->assertFalse($outOfAreaRow['eligible']);
+        $this->assertStringContainsString('Different service area', $outOfAreaRow['reason']);
+
+        $this->assertTrue($matchRow['eligible']);
+    }
+
     public function test_attachment_serves_from_local_and_public_disks_and_404s_when_missing(): void
     {
         $admin = $this->user();

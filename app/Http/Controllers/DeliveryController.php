@@ -10,6 +10,7 @@ use App\Models\Notification;
 use App\Models\LogisticsCenter;
 use App\Models\ServiceArea;
 use App\Models\Transaction;
+use App\Models\PickupRequest;
 use App\Rules\PhilippinePhone;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -78,7 +79,7 @@ class DeliveryController extends Controller
 
         $this->applySearch($query, $search);
 
-        if ($status !== '' && in_array($status, ['waiting_for_rider', 'assigned', 'picked_up', 'out_for_delivery', 'delivered', 'failed', 'cancelled'])) {
+        if ($status !== '' && in_array($status, ['waiting_for_rider', 'assigned', 'accepted', 'going_to_pickup', 'arrived_at_shop', 'picked_up', 'out_for_delivery', 'arrived_at_customer', 'delivered', 'delivery_failed', 'cancelled'])) {
             $query->where('status', $status);
         }
 
@@ -202,7 +203,7 @@ class DeliveryController extends Controller
 
         $riderEligibility = Rider::query()
             ->get()
-            ->map(function (Rider $rider) use ($weight) {
+            ->map(function (Rider $rider) use ($weight, $delivery) {
                 $reason = null;
 
                 if (!$rider->isEligibilityApproved()) {
@@ -217,6 +218,10 @@ class DeliveryController extends Controller
                     $reason = 'Vehicle type deactivated';
                 } elseif ($rider->deliveries()->whereIn('status', Delivery::ACTIVE_STATUSES)->exists()) {
                     $reason = 'Currently delivering';
+                } elseif (!$rider->matchesDestinationCenter($delivery)) {
+                    $reason = 'Different logistics center';
+                } elseif (!$rider->matchesServiceArea($delivery)) {
+                    $reason = 'Different service area';
                 } else {
                     $capacity = $rider->capacityLimit();
                     if ($capacity > 0 && $weight > $capacity) {
@@ -285,6 +290,11 @@ class DeliveryController extends Controller
                 'status' => 'waiting_for_rider',
                 'notes' => 'Delivery created.',
                 'changed_by' => Auth::id(),
+            ]);
+
+            PickupRequest::create([
+                'delivery_id' => $delivery->id,
+                'requested_at' => now(),
             ]);
 
             return $delivery;
@@ -365,6 +375,14 @@ class DeliveryController extends Controller
             return back()->withErrors(['rider_id' => 'Vehicle capacity exceeded. Please assign a suitable vehicle.']);
         }
 
+        if (!$rider->matchesDestinationCenter($delivery)) {
+            return back()->withErrors(['rider_id' => 'Cannot assign delivery. Rider belongs to a different logistics center than the delivery destination.']);
+        }
+
+        if (!$rider->matchesServiceArea($delivery)) {
+            return back()->withErrors(['rider_id' => 'Cannot assign delivery. Rider is assigned to a different service area than the delivery.']);
+        }
+
         $delivery->rider_id = $rider->id;
         $delivery->status = 'assigned';
 
@@ -400,7 +418,7 @@ class DeliveryController extends Controller
     public function updateStatus(Request $request, Delivery $delivery): RedirectResponse
     {
         $validated = $request->validate([
-            'status' => 'required|in:waiting_for_rider,assigned,picked_up,out_for_delivery,delivered,failed,cancelled',
+            'status' => 'required|in:waiting_for_rider,assigned,accepted,going_to_pickup,arrived_at_shop,picked_up,out_for_delivery,arrived_at_customer,delivered,delivery_failed,cancelled',
             'reason' => 'nullable|string',
             'other_reason' => 'nullable|string|min:3|max:500',
             'override_reason' => 'nullable|required_if:override,1|min:3|max:500',
@@ -467,12 +485,12 @@ class DeliveryController extends Controller
                 'assigned' => $delivery->assigned_at = $delivery->assigned_at ?? $now,
                 'picked_up' => $delivery->picked_up_at = $now,
                 'delivered' => $delivery->delivered_at = $now,
-                'failed' => $delivery->failed_at = $now,
+                'delivery_failed' => $delivery->failed_at = $now,
                 'cancelled' => $delivery->cancelled_at = $now,
                 default => null,
             };
 
-            if ($target === 'failed') {
+            if ($target === 'delivery_failed') {
                 $delivery->failure_reason = $reasonText;
             } elseif ($target === 'cancelled') {
                 $delivery->cancellation_reason = $reasonText;
@@ -627,6 +645,10 @@ class DeliveryController extends Controller
             'received_at' => now(),
         ]);
 
+        PickupRequest::where('delivery_id', $delivery->id)->update([
+            'center_id' => $validated['center_id'],
+        ]);
+
         DeliveryStatusLog::create([
             'delivery_id' => $delivery->id,
             'status' => 'received',
@@ -694,6 +716,32 @@ class DeliveryController extends Controller
         ]);
 
         return redirect()->back()->with('success', 'Parcel sorted successfully.');
+    }
+
+    public function dispatch(Delivery $delivery): RedirectResponse
+    {
+        if ($delivery->parcel_status !== 'sorted') {
+            return back()->with('error', 'Parcel must be sorted before it can be dispatched from the center.');
+        }
+
+        $user = Auth::user();
+        if ($user->isStaff() && (! $user->center_id || ! $delivery->center_id || $delivery->center_id != $user->center_id)) {
+            abort(403, 'You can only dispatch parcels at your assigned logistics center.');
+        }
+
+        $delivery->update([
+            'parcel_status' => 'dispatched',
+            'dispatched_at' => now(),
+        ]);
+
+        DeliveryStatusLog::create([
+            'delivery_id' => $delivery->id,
+            'status' => 'dispatched',
+            'notes' => 'Parcel dispatched from handling center.',
+            'changed_by' => Auth::id(),
+        ]);
+
+        return redirect()->back()->with('success', 'Parcel dispatched successfully.');
     }
 
     public function archived(Request $request): View

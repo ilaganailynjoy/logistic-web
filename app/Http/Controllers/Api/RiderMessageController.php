@@ -21,6 +21,7 @@ class RiderMessageController extends Controller
                 'participant_name' => $user->name,
                 'subject' => 'Rider Support',
                 'last_message_at' => now(),
+                'rider_id' => $user->rider?->id,
             ],
         );
     }

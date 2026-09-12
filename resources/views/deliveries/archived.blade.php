@@ -34,7 +34,7 @@
 
                 <select name="status" class="bg-white border border-gray-200 rounded-xl px-3 py-2 text-sm text-gray-600 focus:border-teal focus:ring-teal shadow-sm">
                     <option value="">All statuses</option>
-                    @foreach(['waiting_for_rider','assigned','picked_up','out_for_delivery','delivered','failed','cancelled'] as $s)
+                    @foreach(['waiting_for_rider','assigned','picked_up','out_for_delivery','delivered','delivery_failed','cancelled'] as $s)
                         <option value="{{ $s }}" {{ request('status') === $s ? 'selected' : '' }}>{{ ucfirst(str_replace('_', ' ', $s)) }}</option>
                     @endforeach
                 </select>

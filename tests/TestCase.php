@@ -55,9 +55,16 @@ abstract class TestCase extends BaseTestCase
         // restored deterministically via the single source of truth.
         preg_match_all('/CREATE TABLE\s+`?([a-zA-Z0-9_]+)`?/i', $sql, $matches);
         $tables = array_unique($matches[1] ?? []);
+
+        // RefreshDatabase suites (e.g. ProfileTest) wipe the shared DB via
+        // migrate:fresh mid-run, leaving freshly-migrated tables like `orders`
+        // referencing `addresses`. Disable FK checks while dropping so the
+        // rebuild is order-independent (mirrors Laravel's own migrate:fresh).
+        $pdo->exec('SET FOREIGN_KEY_CHECKS = 0');
         foreach ($tables as $table) {
             $pdo->exec("DROP TABLE IF EXISTS `{$table}`");
         }
+        $pdo->exec('SET FOREIGN_KEY_CHECKS = 1');
 
         $statements = array_filter(array_map('trim', explode(";\n", $sql)));
 

@@ -4,8 +4,11 @@ namespace Tests\Feature;
 
 use App\Models\RiderApplication;
 use App\Models\RiderApplicationDocument;
+use App\Models\RiderEmailVerification;
 use App\Models\User;
+use Database\Seeders\VehicleTypeSeeder;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
@@ -17,6 +20,12 @@ use Tests\TestCase;
  */
 class RiderApplicationControllerTest extends TestCase
 {
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->seed(VehicleTypeSeeder::class);
+    }
+
     private function uniquePhone(): string
     {
         return '0917' . random_int(1000000, 9999999);
@@ -32,6 +41,23 @@ class RiderApplicationControllerTest extends TestCase
             "\xFF\xD8\xFF\xE0\x00\x10JFIF\x00\x01\x01\x00\x00\x01\x00\x01\x00\x00" . str_repeat("\x00", 300)
         );
         return new UploadedFile($path, $name, 'image/jpeg', null, true);
+    }
+
+    /**
+     * Mark an address as OTP-verified (POST /api/rider/apply requires a
+     * completed verification; the gate itself is covered by
+     * RiderEmailVerificationTest).
+     */
+    private function markEmailVerified(string $email): void
+    {
+        RiderEmailVerification::create([
+            'email' => $email,
+            'otp_hash' => Hash::make('000000'),
+            'expires_at' => now()->addMinutes(5),
+            'attempts' => 1,
+            'consumed_at' => now(),
+            'last_sent_at' => now(),
+        ]);
     }
 
     private function submitData(string $ownership = 'own', string $riderType = 'full_time'): array
@@ -50,7 +76,7 @@ class RiderApplicationControllerTest extends TestCase
             $docs['encumbrance_certificate'] = $this->jpg('encumbrance.jpg');
         }
 
-        return [
+        $data = [
             'name' => 'Applicant Test ' . uniqid(),
             'email' => 'applier-' . uniqid() . '@test.com',
             'phone' => $this->uniquePhone(),
@@ -63,6 +89,10 @@ class RiderApplicationControllerTest extends TestCase
             'vehicle_ownership' => $ownership,
             'documents' => $docs,
         ];
+
+        $this->markEmailVerified($data['email']);
+
+        return $data;
     }
 
     public function test_apply_with_rider_type_and_ownership_succeeds(): void
@@ -344,5 +374,58 @@ class RiderApplicationControllerTest extends TestCase
             $html
         );
         $this->assertStringNotContainsString('href="' . $resendRoute . '"', $html);
+    }
+
+    public function test_apply_stores_personal_and_address_fields_and_computes_age(): void
+    {
+        Storage::fake('local');
+
+        $birthday = now()->subYears(20)->subMonths(3)->format('Y-m-d');
+        $data = array_merge($this->submitData('own', 'full_time'), [
+            'middle_initial' => 'R',
+            'sex' => 'male',
+            'birthday' => $birthday,
+            'house_number' => '123',
+            'street' => 'Reyes St',
+            'barangay' => 'Barangay Uno',
+            'municipality' => 'Quezon City',
+            'province' => 'Metro Manila',
+        ]);
+
+        $response = $this->post('/api/rider/apply', $data);
+
+        $response->assertStatus(201);
+
+        $expectedAge = \Carbon\Carbon::parse($birthday)->age;
+        $this->assertDatabaseHas('rider_applications', [
+            'id' => $response->json('application.id'),
+            'middle_initial' => 'R',
+            'sex' => 'male',
+            'birthday' => $birthday,
+            'age' => $expectedAge,
+            'house_number' => '123',
+            'street' => 'Reyes St',
+            'barangay' => 'Barangay Uno',
+            'municipality' => 'Quezon City',
+            'province' => 'Metro Manila',
+        ]);
+    }
+
+    public function test_apply_rejects_applicants_under_18(): void
+    {
+        Storage::fake('local');
+
+        $data = array_merge($this->submitData('own', 'full_time'), [
+            'sex' => 'female',
+            'birthday' => now()->subYears(17)->format('Y-m-d'),
+        ]);
+
+        $response = $this->post('/api/rider/apply', $data);
+
+        $response->assertStatus(422)
+            ->assertJsonValidationErrors('birthday');
+        $this->assertDatabaseMissing('rider_applications', [
+            'email' => $data['email'],
+        ]);
     }
 }

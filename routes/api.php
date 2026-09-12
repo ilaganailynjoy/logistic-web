@@ -1,10 +1,13 @@
 <?php
 
+use App\Http\Controllers\Api\AddressController;
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\CenterApplicationController;
 use App\Http\Controllers\Api\RiderApplicationController;
 use App\Http\Controllers\Api\RiderController;
 use App\Http\Controllers\Api\RiderDeliveryController;
 use App\Http\Controllers\Api\RiderEarningsController;
+use App\Http\Controllers\Api\RiderEmailVerificationController;
 use App\Http\Controllers\Api\RiderHistoryController;
 use App\Http\Controllers\Api\RiderLocationController;
 use App\Http\Controllers\Api\RiderConversationController;
@@ -18,8 +21,20 @@ Route::post('/login', [AuthController::class, 'login'])
     ->middleware('throttle:10,1');
 
 Route::get('/vehicle-types', [VehicleTypeController::class, 'index']);
+Route::get('/address/provinces', [AddressController::class, 'provinces']);
+Route::get('/address/provinces/{province}/municipalities', [AddressController::class, 'municipalities']);
+Route::get('/address/municipalities/{municipality}/barangays', [AddressController::class, 'barangays']);
 Route::post('/rider/apply', [RiderApplicationController::class, 'store']);
 Route::get('/rider/application-status', [RiderApplicationController::class, 'status']);
+Route::post('/center/apply', [CenterApplicationController::class, 'store']);
+Route::get('/center/application-status', [CenterApplicationController::class, 'status']);
+
+Route::post('/rider/email/request-code', [RiderEmailVerificationController::class, 'send'])
+    ->middleware('throttle:5,1');
+Route::post('/rider/email/resend', [RiderEmailVerificationController::class, 'send'])
+    ->middleware('throttle:5,1');
+Route::post('/rider/email/verify', [RiderEmailVerificationController::class, 'verify'])
+    ->middleware('throttle:10,1');
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);

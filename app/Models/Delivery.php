@@ -12,7 +12,15 @@ class Delivery extends Model
 {
     use HasFactory;
 
-    public const ACTIVE_STATUSES = ['assigned', 'picked_up', 'out_for_delivery'];
+    public const ACTIVE_STATUSES = [
+        'assigned',
+        'accepted',
+        'going_to_pickup',
+        'arrived_at_shop',
+        'picked_up',
+        'out_for_delivery',
+        'arrived_at_customer',
+    ];
 
     protected $fillable = [
         'tracking_number',
@@ -61,6 +69,7 @@ class Delivery extends Model
         'received_at',
         'scanned_at',
         'sorted_at',
+        'dispatched_at',
     ];
 
     protected function casts(): array
@@ -85,6 +94,7 @@ class Delivery extends Model
             'received_at' => 'datetime',
             'scanned_at' => 'datetime',
             'sorted_at' => 'datetime',
+            'dispatched_at' => 'datetime',
         ];
     }
 
@@ -99,6 +109,21 @@ class Delivery extends Model
                 } while (self::where('tracking_number', $candidate)->exists());
 
                 $delivery->tracking_number = $candidate;
+            }
+        });
+
+        // Auto-complete the linked pickup request once the parcel is picked up.
+        // Runs on every save so both the web status update and the rider API
+        // pickup flow complete the request without touching either controller.
+        static::saving(function (Delivery $delivery) {
+            if ($delivery->isDirty('status') && $delivery->status === 'picked_up') {
+                $pickup = $delivery->pickupRequest()->first();
+                if ($pickup && $pickup->status !== 'completed') {
+                    $pickup->update([
+                        'status' => 'completed',
+                        'reviewed_at' => now(),
+                    ]);
+                }
             }
         });
     }
@@ -166,6 +191,11 @@ class Delivery extends Model
     public function transaction()
     {
         return $this->hasOne(Transaction::class);
+    }
+
+    public function pickupRequest()
+    {
+        return $this->hasOne(PickupRequest::class);
     }
 
     public function scopeNotArchived($query)

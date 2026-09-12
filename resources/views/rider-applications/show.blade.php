@@ -48,8 +48,30 @@
                 <p class="text-sm font-medium text-gray-900">{{ $application->name }}</p>
             </div>
             <div>
+                <p class="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Middle Initial</p>
+                <p class="text-sm font-medium text-gray-900">{{ $application->middle_initial ?? '—' }}</p>
+            </div>
+            <div>
+                <p class="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Sex</p>
+                <p class="text-sm font-medium text-gray-900">{{ ucfirst($application->sex ?? '—') }}</p>
+            </div>
+            <div>
+                <p class="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Birthday</p>
+                <p class="text-sm font-medium text-gray-900">{{ $application->birthday?->format('M d, Y') ?? '—' }}</p>
+            </div>
+            <div>
+                <p class="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Age</p>
+                <p class="text-sm font-medium text-gray-900">{{ $application->age ?? '—' }}</p>
+            </div>
+            <div>
                 <p class="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Address</p>
-                <p class="text-sm font-medium text-gray-900">{{ $application->address ?? '—' }}</p>
+                <p class="text-sm font-medium text-gray-900">
+                    {{ trim(implode(' ', array_filter([$application->house_number,
+                                                       $application->street,
+                                                       $application->barangay,
+                                                       $application->municipality,
+                                                       $application->province]))) ?: ($application->address ?? '—') }}
+                </p>
             </div>
             <div>
                 <p class="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Vehicle Type</p>

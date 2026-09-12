@@ -13,9 +13,18 @@ class RiderApplication extends Model
 
     protected $fillable = [
         'name',
+        'middle_initial',
+        'sex',
+        'birthday',
+        'age',
         'email',
         'phone',
         'address',
+        'house_number',
+        'street',
+        'barangay',
+        'municipality',
+        'province',
         'vehicle_type',
         'license_plate',
         'license_number',
@@ -37,6 +46,7 @@ class RiderApplication extends Model
     {
         return [
             'status' => 'string',
+            'birthday' => 'date:Y-m-d',
             'reviewed_at' => 'datetime',
             'provisioned_at' => 'datetime',
             'documents' => 'array',

@@ -286,6 +286,59 @@ class RiderApprovalMailTest extends TestCase
         }
     }
 
+    public function test_email_contains_no_deep_link_or_credentials_in_urls(): void
+    {
+        Mail::fake();
+        $app = $this->application();
+
+        $this->approve($app)->assertRedirect();
+
+        $sent = Mail::sent(RiderAccountApprovedMail::class)
+            ->last(fn ($mail) => $mail->application->id === $app->id);
+        $this->assertNotNull($sent);
+        $html = $sent->render();
+
+        // No custom-scheme deep link in the email.
+        $this->assertStringNotContainsString('invoizrider://login', $html);
+        $this->assertStringNotContainsString('invoizrider://', $html);
+
+        // No clickable CTA button at all.
+        $this->assertStringNotContainsString('Open the INVOIZ Rider App', $html);
+
+        // Credentials never placed inside any URL.
+        $this->assertStringNotContainsString('password=', $html);
+        $this->assertStringNotContainsString('token=', $html);
+        $this->assertStringNotContainsString('otp=', $html);
+        $this->assertStringNotContainsString('email=', $html);
+
+        // The email still contains all required content.
+        $this->assertTrue($sent->hasTo($app->email));
+        $this->assertStringContainsString($app->email, $html);
+        $this->assertStringContainsString($sent->temporaryPassword, $html);
+        $this->assertStringContainsString(RiderAccountApprovedMail::referenceFor($app->fresh()), $html);
+        $this->assertStringContainsString('change your temporary password after your first successful login', $html);
+        $this->assertStringContainsString('open the INVOIZ Rider App and log in', $html);
+    }
+
+    public function test_resend_email_contains_no_deep_link(): void
+    {
+        Mail::fake();
+        $app = $this->application();
+
+        $this->approve($app)->assertRedirect();
+        $this->post("/rider-applications/{$app->id}/resend-credentials")->assertRedirect();
+
+        $resent = Mail::sent(RiderAccountApprovedMail::class)
+            ->last(fn ($mail) => $mail->application->id === $app->id);
+        $this->assertNotNull($resent);
+        $html = $resent->render();
+
+        $this->assertStringNotContainsString('invoizrider://login', $html);
+        $this->assertStringNotContainsString('invoizrider://', $html);
+        $this->assertStringNotContainsString('password=', $html);
+        $this->assertTrue($resent->hasTo($app->email));
+    }
+
     public function test_resend_requires_approved_provisioned_application(): void
     {
         Mail::fake();

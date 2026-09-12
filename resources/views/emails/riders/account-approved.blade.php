@@ -34,11 +34,7 @@
         </p>
     </div>
 
-    <p>You may now log in to the INVOIZ Rider App using the credentials above.</p>
-
-    <p style="text-align: center; margin: 18px 0;">
-        <span style="display: inline-block; background: #16697A; color: #FFFFFF; font-size: 14px; font-weight: 700; padding: 12px 22px; border-radius: 8px;">Open the INVOIZ Rider App to log in.</span>
-    </p>
+    <p>You may now open the INVOIZ Rider App and log in using the credentials above.</p>
 
     <p style="background: #F0EEE9; border-radius: 8px; padding: 12px 16px; font-size: 13px; margin: 18px 0;">
         <strong>Important:</strong> For your security, please change your temporary password after your first successful login.

@@ -132,7 +132,23 @@
                                 @endif
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap">
-                                <a href="{{ route('riders.show', $rider) }}" class="text-sm font-semibold text-teal hover:text-teal-dark">View</a>
+                                @php($canManage = Auth::user()->isAdmin() || Auth::user()->center_id == $rider->center_id)
+                                <div class="flex items-center gap-3">
+                                    <a href="{{ route('riders.show', $rider) }}" class="text-sm font-semibold text-teal hover:text-teal-dark">View</a>
+                                    @if($canManage)
+                                        @if($rider->status === 'inactive')
+                                            <form action="{{ route('riders.activate', $rider) }}" method="POST">
+                                                @csrf
+                                                <button type="submit" class="text-sm font-semibold text-emerald-600 hover:text-emerald-700">Activate</button>
+                                            </form>
+                                        @else
+                                            <form action="{{ route('riders.deactivate', $rider) }}" method="POST" x-data x-on:submit.prevent="if (confirm('Deactivate {{ $rider->name }}?')) $el.submit()">
+                                                @csrf
+                                                <button type="submit" class="text-sm font-semibold text-red-500 hover:text-red-600">Deactivate</button>
+                                            </form>
+                                        @endif
+                                    @endif
+                                </div>
                             </td>
                         </tr>
                     @empty

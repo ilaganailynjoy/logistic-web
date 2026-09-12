@@ -6,15 +6,16 @@
             'picked_up'         => 'bg-indigo-500',
             'out_for_delivery'  => 'bg-purple-500',
             'delivered'         => 'bg-emerald-500',
-            'failed'            => 'bg-red-500',
+            'delivery_failed'   => 'bg-red-500',
             'cancelled'         => 'bg-gray-400',
+            'dispatched'        => 'bg-sky-500',
             'archived'          => 'bg-gray-300',
             'restored'          => 'bg-teal-500',
         ];
         $stepOrder = ['assigned', 'picked_up', 'out_for_delivery', 'delivered'];
         $stepLabels = ['assigned' => 'Assigned', 'picked_up' => 'Picked Up', 'out_for_delivery' => 'Out for Delivery', 'delivered' => 'Delivered'];
         $currentIndex = array_search($delivery->status, $stepOrder);
-        $isTerminalBad = in_array($delivery->status, ['failed', 'cancelled']);
+        $isTerminalBad = in_array($delivery->status, ['delivery_failed', 'cancelled']);
         $weight = (float) ($delivery->weight ?? 0);
         $capacities = \App\Models\LogisticsSetting::vehicleCapacities();
     @endphp
@@ -37,15 +38,15 @@
 
     {{-- Failure / Cancellation banner --}}
     @if($isTerminalBad && ($delivery->failure_reason || $delivery->cancellation_reason))
-        <div class="mb-6 flex items-start gap-3 rounded-2xl border p-5 {{ $delivery->status === 'failed' ? 'bg-red-50 border-red-200' : 'bg-gray-50 border-gray-200' }}">
-            <svg class="h-5 w-5 flex-shrink-0 {{ $delivery->status === 'failed' ? 'text-red-600' : 'text-gray-500' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+        <div class="mb-6 flex items-start gap-3 rounded-2xl border p-5 {{ $delivery->status === 'delivery_failed' ? 'bg-red-50 border-red-200' : 'bg-gray-50 border-gray-200' }}">
+            <svg class="h-5 w-5 flex-shrink-0 {{ $delivery->status === 'delivery_failed' ? 'text-red-600' : 'text-gray-500' }}" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
             <div>
-                <p class="text-sm font-bold {{ $delivery->status === 'failed' ? 'text-red-700' : 'text-gray-700' }}">
-                    {{ $delivery->status === 'failed' ? 'Delivery Failed' : 'Delivery Cancelled' }}
-                    @if($delivery->status === 'failed' && $delivery->failed_at)<span class="font-normal">· {{ $delivery->failed_at->format('M d, Y h:i A') }}</span>@endif
+                <p class="text-sm font-bold {{ $delivery->status === 'delivery_failed' ? 'text-red-700' : 'text-gray-700' }}">
+                    {{ $delivery->status === 'delivery_failed' ? 'Delivery Failed' : 'Delivery Cancelled' }}
+                    @if($delivery->status === 'delivery_failed' && $delivery->failed_at)<span class="font-normal">· {{ $delivery->failed_at->format('M d, Y h:i A') }}</span>@endif
                     @if($delivery->status === 'cancelled' && $delivery->cancelled_at)<span class="font-normal">· {{ $delivery->cancelled_at->format('M d, Y h:i A') }}</span>@endif
                 </p>
-                <p class="text-sm {{ $delivery->status === 'failed' ? 'text-red-600' : 'text-gray-600' }} mt-0.5">
+                <p class="text-sm {{ $delivery->status === 'delivery_failed' ? 'text-red-600' : 'text-gray-600' }} mt-0.5">
                     <span class="font-semibold">Reason:</span> {{ $delivery->failure_reason ?? $delivery->cancellation_reason }}
                 </p>
             </div>
@@ -108,8 +109,8 @@
 
             @if($isTerminalBad)
                 <div class="mt-4 flex justify-center">
-                    <span class="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold {{ $delivery->status === 'failed' ? 'bg-red-100 text-red-700 ring-1 ring-red-200' : 'bg-gray-100 text-gray-600 ring-1 ring-gray-200' }}">
-                        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="{{ $delivery->status === 'failed' ? 'M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z' : 'M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636'}}"/></svg>
+                    <span class="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold {{ $delivery->status === 'delivery_failed' ? 'bg-red-100 text-red-700 ring-1 ring-red-200' : 'bg-gray-100 text-gray-600 ring-1 ring-gray-200' }}">
+                        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="{{ $delivery->status === 'delivery_failed' ? 'M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z' : 'M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636'}}"/></svg>
                         Final Status: {{ ucfirst(str_replace('_', ' ', $delivery->status)) }} — not completed
                     </span>
                 </div>
@@ -194,7 +195,7 @@
         </div>
     </div>
 
-    {{-- Parcel Processing (Receive -> Scan -> Sort) --}}
+    {{-- Parcel Processing (Receive -> Scan -> Sort -> Dispatch) --}}
     <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-6">
         <div class="flex items-center gap-2 mb-5">
             <div class="h-2 w-1 rounded-full bg-teal"></div>
@@ -210,13 +211,14 @@
                 'received'        => ['label' => 'Received', 'index' => 1],
                 'scanned'         => ['label' => 'Scanned', 'index' => 2],
                 'sorted'          => ['label' => 'Sorted', 'index' => 3],
+                'dispatched'      => ['label' => 'Dispatched', 'index' => 4],
             ];
             $currentParcelIndex = $parcelSteps[$delivery->parcel_status ?? 'pending_arrival']['index'];
         @endphp
 
         <div class="relative mb-6">
             <div class="absolute top-5 left-8 right-8 h-1 bg-gray-200 rounded-full"></div>
-            <div class="absolute top-5 left-8 h-1 bg-teal rounded-full transition-all duration-700" style="width: {{ ($currentParcelIndex / 3) * 100 }}%"></div>
+            <div class="absolute top-5 left-8 h-1 bg-teal rounded-full transition-all duration-700" style="width: {{ ($currentParcelIndex / (count($parcelSteps) - 1)) * 100 }}%"></div>
             <div class="relative flex justify-between">
                 @foreach($parcelSteps as $key => $step)
                     @php
@@ -303,7 +305,19 @@
                     </form>
                 @endif
 
-                @if(in_array($delivery->parcel_status, ['received', 'scanned', 'sorted']) && $delivery->logisticsCenter)
+                @if($delivery->parcel_status === 'sorted')
+                    <form action="{{ route('deliveries.dispatch', $delivery) }}" method="POST" class="w-full max-w-xl">
+                        @csrf
+                        <div class="flex flex-col sm:flex-row items-start sm:items-center gap-3 bg-sky-50 rounded-xl px-4 py-3 border border-sky-100">
+                            <p class="text-sm text-sky-800 flex-1">Parcel is sorted and ready. Confirm it has left the center toward its delivery assignment. Rider assignment remains a separate step.</p>
+                            <button type="submit" class="bg-sky-500 hover:bg-sky-600 text-white font-semibold px-5 py-2.5 rounded-xl transition shadow-sm text-sm whitespace-nowrap">
+                                Dispatch Parcel
+                            </button>
+                        </div>
+                    </form>
+                @endif
+
+                @if(in_array($delivery->parcel_status, ['received', 'scanned', 'sorted', 'dispatched']) && $delivery->logisticsCenter)
                     <div class="w-full flex flex-wrap items-center gap-x-6 gap-y-1 text-xs text-gray-500 bg-gray-50 rounded-xl px-4 py-3">
                         @if($delivery->logisticsCenter)<span><strong class="text-gray-700">Handling Center:</strong> {{ $delivery->logisticsCenter->name }}</span>@endif
                         @if($delivery->received_at)<span><strong class="text-gray-700">Received:</strong> {{ $delivery->received_at->format('M d, Y h:i A') }}</span>@endif
@@ -311,6 +325,7 @@
                         @if($delivery->destinationCenter)<span><strong class="text-gray-700">Destination:</strong> {{ $delivery->destinationCenter->name }}</span>@endif
                         @if($delivery->serviceArea)<span><strong class="text-gray-700">Service Area:</strong> {{ $delivery->serviceArea->name }}</span>@endif
                         @if($delivery->sorted_at)<span><strong class="text-gray-700">Sorted:</strong> {{ $delivery->sorted_at->format('M d, Y h:i A') }}</span>@endif
+                        @if($delivery->dispatched_at)<span><strong class="text-gray-700">Dispatched:</strong> {{ $delivery->dispatched_at->format('M d, Y h:i A') }}</span>@endif
                     </div>
                 @endif
             </div>
@@ -373,7 +388,7 @@
                                 <div class="flex flex-wrap items-center justify-between gap-2 mb-1">
                                     <span class="text-sm font-semibold text-gray-900">
                                         {{ \Illuminate\Support\Str::title(str_replace('_', ' ', $log->status)) }}
-                                        @if(in_array($log->status, ['failed', 'cancelled']))<span class="ml-1 text-xs font-normal text-red-500">(final)</span>@endif
+                                        @if(in_array($log->status, ['delivery_failed', 'cancelled']))<span class="ml-1 text-xs font-normal text-red-500">(final)</span>@endif
                                     </span>
                                     <span class="text-xs text-gray-500">{{ $log->created_at->format('M d, Y · h:i A') }}</span>
                                 </div>
@@ -450,7 +465,7 @@
                             </button>
                         </div>
                         @if($riderEligibility->where('eligible', true)->isEmpty())
-                            <p class="mt-2 text-xs text-amber-600">No eligible riders right now. Riders must be approved, active, online, have a verified vehicle, no active delivery, and sufficient capacity.</p>
+                            <p class="mt-2 text-xs text-amber-600">No eligible riders right now. Riders must be approved, active, online, have a verified vehicle, no active delivery, sufficient capacity, and belong to the delivery's destination center and service area.</p>
                         @endif
                         @if($errors->has('rider_id'))
                             <p class="text-red-500 text-xs mt-1">{{ $errors->first('rider_id') }}</p>
@@ -508,7 +523,7 @@
                     </button>
                 @endif
 
-                @if(in_array($delivery->status, ['delivered', 'failed', 'cancelled']))
+                @if(in_array($delivery->status, ['delivered', 'delivery_failed', 'cancelled']))
                     <button type="button" @click="overrideOpen = true"
                             class="inline-flex items-center gap-2 bg-white border border-amber-300 hover:bg-amber-50 text-amber-700 font-semibold px-4 py-2.5 rounded-xl transition text-sm">
                         <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
@@ -551,7 +566,7 @@
             <form action="{{ route('deliveries.update-status', $delivery) }}" method="POST" class="relative bg-white rounded-2xl shadow-xl w-full max-w-md" x-transition>
                 @csrf
                 @method('PATCH')
-                <input type="hidden" name="status" value="failed">
+                <input type="hidden" name="status" value="delivery_failed">
                 <div class="px-6 py-4 border-b border-gray-100">
                     <h4 class="font-bold text-gray-900">Mark Delivery as Failed?</h4>
                     <p class="text-sm text-gray-500 mt-0.5">{{ $delivery->tracking_number }} will be marked failed and removed from active routes.</p>

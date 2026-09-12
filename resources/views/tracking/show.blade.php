@@ -66,11 +66,11 @@
 
                 @if ($currentIndex === -1)
                     <div class="flex flex-col items-center text-center py-2">
-                        <span class="inline-flex items-center gap-2 px-5 py-3 rounded-xl text-sm font-bold {{ $delivery->status === 'failed' ? 'bg-red-100 text-red-700 ring-1 ring-red-200' : 'bg-gray-100 text-gray-600 ring-1 ring-gray-200' }}">
-                            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="{{ $delivery->status === 'failed' ? 'M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z' : 'M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636'}}"/></svg>
+                        <span class="inline-flex items-center gap-2 px-5 py-3 rounded-xl text-sm font-bold {{ $delivery->status === 'delivery_failed' ? 'bg-red-100 text-red-700 ring-1 ring-red-200' : 'bg-gray-100 text-gray-600 ring-1 ring-gray-200' }}">
+                            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="{{ $delivery->status === 'delivery_failed' ? 'M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z' : 'M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636'}}"/></svg>
                             Final Status: {{ ucfirst(str_replace('_', ' ', $delivery->status)) }} — this delivery was not completed
                         </span>
-                        @if($delivery->status === 'failed' && $delivery->failure_reason)
+                        @if($delivery->status === 'delivery_failed' && $delivery->failure_reason)
                             <p class="text-sm text-red-600 mt-3"><strong>Failure reason:</strong> {{ $delivery->failure_reason }}</p>
                         @endif
                         @if($delivery->status === 'cancelled' && $delivery->cancellation_reason)

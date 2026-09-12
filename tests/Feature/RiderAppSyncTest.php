@@ -5,10 +5,13 @@ namespace Tests\Feature;
 use App\Models\LogisticsCenter;
 use App\Models\Rider;
 use App\Models\RiderApplication;
+use App\Models\RiderEmailVerification;
 use App\Models\ServiceArea;
 use App\Models\User;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
+use Database\Seeders\VehicleTypeSeeder;
 use Tests\TestCase;
 
 /**
@@ -19,6 +22,12 @@ use Tests\TestCase;
  */
 class RiderAppSyncTest extends TestCase
 {
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->seed(VehicleTypeSeeder::class);
+    }
+
     private function jpg(string $name): UploadedFile
     {
         $base = tempnam(sys_get_temp_dir(), 'sync');
@@ -56,7 +65,15 @@ class RiderAppSyncTest extends TestCase
         $email = 'sync-flow-' . uniqid() . '@test.com';
         $phone = '0917' . random_int(1000000, 9999999);
 
-        // 1. Driver App applies -> exactly one rider_applications row.
+        // 1. Driver App applies (after OTP verification) -> exactly one row.
+        RiderEmailVerification::create([
+            'email' => $email,
+            'otp_hash' => Hash::make('000000'),
+            'expires_at' => now()->addMinutes(5),
+            'attempts' => 1,
+            'consumed_at' => now(),
+            'last_sent_at' => now(),
+        ]);
         $apply = $this->post('/api/rider/apply', [
             'name' => 'Sync Flow Rider',
             'email' => $email,

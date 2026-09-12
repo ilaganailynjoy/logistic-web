@@ -54,7 +54,6 @@ class RiderAccountProvisioner
             $nameParts = array_values(array_filter(array_map('trim', explode(' ', $application->name))));
             $first = $nameParts[0] ?? $application->name;
             $last = $nameParts[1] ?? $application->name;
-            $middle = count($nameParts) > 2 ? substr($nameParts[1], 0, 1) : null;
 
             $user = User::where('email', $email)->first();
             if (! $user) {
@@ -62,13 +61,13 @@ class RiderAccountProvisioner
                     'name' => $application->name,
                     'first_name' => $first,
                     'last_name' => $last,
-                    'middle_initial' => $middle,
-                    'sex' => 'other',
+                    'middle_initial' => $application->middle_initial,
+                    'sex' => $application->sex ?: 'other',
                     'email' => $email,
                     'password' => Hash::make($settings['password']),
                     'phone' => $application->phone,
-                    'birthday' => '1970-01-01',
-                    'age' => 0,
+                    'birthday' => $application->birthday?->format('Y-m-d') ?? '1970-01-01',
+                    'age' => $application->age ?? 0,
                     'role' => 'rider',
                     'status' => 'active',
                     'center_id' => $center->id,

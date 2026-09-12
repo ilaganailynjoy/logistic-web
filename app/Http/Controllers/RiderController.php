@@ -7,6 +7,7 @@ use App\Models\Delivery;
 use App\Models\LogisticsCenter;
 use App\Models\ServiceArea;
 use Illuminate\Http\Request;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\View\View;
 
@@ -82,5 +83,48 @@ class RiderController extends Controller
             'rider' => $rider,
             'currentDelivery' => $currentDelivery,
         ]);
+    }
+
+    public function activate(Rider $rider): RedirectResponse
+    {
+        $this->authorizeRiderCenter($rider);
+
+        if ($rider->status !== 'inactive') {
+            return back()->with('error', 'Rider is already active.');
+        }
+
+        $hasActiveDelivery = $rider->deliveries()
+            ->whereIn('status', Delivery::ACTIVE_STATUSES)
+            ->exists();
+
+        $rider->update(['status' => $hasActiveDelivery ? 'delivering' : 'available']);
+
+        return back()->with('success', "Rider {$rider->name} activated and eligible for delivery assignment.");
+    }
+
+    public function deactivate(Rider $rider): RedirectResponse
+    {
+        $this->authorizeRiderCenter($rider);
+
+        if ($rider->status === 'inactive') {
+            return back()->with('error', 'Rider is already inactive.');
+        }
+
+        $rider->update(['status' => 'inactive']);
+
+        return back()->with('success', "Rider {$rider->name} deactivated. Existing deliveries have been preserved.");
+    }
+
+    /**
+     * Staff may only manage riders from their assigned logistics center.
+     * Admins (and staff without an assigned center) are unrestricted.
+     */
+    private function authorizeRiderCenter(Rider $rider): void
+    {
+        $user = Auth::user();
+
+        if ($user->isStaff() && $user->center_id && $rider->center_id != $user->center_id) {
+            abort(403, 'You can only manage riders from your assigned logistics center.');
+        }
     }
 }
