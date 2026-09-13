@@ -70,6 +70,10 @@ class Delivery extends Model
         'scanned_at',
         'sorted_at',
         'dispatched_at',
+        'sorting_center_handoff_at',
+        'sorting_center_handoff_rider_id',
+        'sorting_center_pickup_at',
+        'sorting_center_pickup_rider_id',
     ];
 
     protected function casts(): array
@@ -95,6 +99,8 @@ class Delivery extends Model
             'scanned_at' => 'datetime',
             'sorted_at' => 'datetime',
             'dispatched_at' => 'datetime',
+            'sorting_center_handoff_at' => 'datetime',
+            'sorting_center_pickup_at' => 'datetime',
         ];
     }
 
@@ -196,6 +202,16 @@ class Delivery extends Model
     public function pickupRequest()
     {
         return $this->hasOne(PickupRequest::class);
+    }
+
+    public function sortingCenterHandoffRider(): BelongsTo
+    {
+        return $this->belongsTo(Rider::class, 'sorting_center_handoff_rider_id');
+    }
+
+    public function sortingCenterPickupRider(): BelongsTo
+    {
+        return $this->belongsTo(Rider::class, 'sorting_center_pickup_rider_id');
     }
 
     public function scopeNotArchived($query)

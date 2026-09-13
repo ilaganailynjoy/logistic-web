@@ -77,10 +77,12 @@ abstract class TestCase extends BaseTestCase
 
     private function schemaPresent(\PDO $pdo): bool
     {
-        // Guard on a representative custom table. A framework `users` table
-        // (or one recreated by a partial migration) is not sufficient — the
-        // Logistics/Rider schema depends on riders, logistics_centers, etc.
-        foreach (['riders', 'logistics_centers', 'deliveries'] as $table) {
+        // Guard on representative tables including the base `users` table.
+        // `users` must be present for Auth/Profile tests; `riders`,
+        // `logistics_centers`, and `deliveries` cover the logistics domain.
+        // If any are missing (e.g. after a RefreshDatabase wipe), the full
+        // canonical schema dump is reloaded.
+        foreach (['users', 'riders', 'logistics_centers', 'deliveries'] as $table) {
             if (! $pdo->query("SHOW TABLES LIKE \"{$table}\"")->fetch()) {
                 return false;
             }

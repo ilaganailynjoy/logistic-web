@@ -12,6 +12,7 @@ use App\Models\Rider;
 use App\Models\RiderEarning;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 
 class RiderDeliveryController extends Controller
@@ -142,7 +143,15 @@ class RiderDeliveryController extends Controller
 
         $next = $validated['status'];
 
-        if (! in_array($next, self::TRANSITIONS[$delivery->status] ?? [])) {
+        $allowed = self::TRANSITIONS[$delivery->status] ?? [];
+        // Sorting-center pickup flow: after the delivery rider has collected the
+        // parcel from the center, the next step is out_for_delivery even
+        // though the generic seller-pickup graph only allows assigned->accepted.
+        if ($next === 'out_for_delivery' && in_array($delivery->status, ['assigned', 'accepted'], true) && $delivery->sorting_center_pickup_at !== null) {
+            $allowed[] = 'out_for_delivery';
+        }
+
+        if (! in_array($next, $allowed)) {
             return $this->invalidTransition($delivery);
         }
 
@@ -273,6 +282,149 @@ class RiderDeliveryController extends Controller
             'message' => 'Delivery completed successfully.',
             'earned' => $earned,
             'delivery' => $this->detailPayload($delivery->load(['items', 'statusLogs', 'proof', 'failure'])),
+        ]);
+    }
+
+    /**
+     * Handoff parcel to the sorting center (pickup rider leg).
+     *
+     * Only the rider who currently owns the delivery (rider_id) and whose
+     * delivery is in picked_up may hand over. Idempotent: duplicate is 409.
+     */
+    public function sortingCenterHandoff(Request $request, Delivery $delivery): JsonResponse
+    {
+        $this->authorizeDelivery($request, $delivery);
+
+        // Must have already picked up from seller; preserves seller-pickup history.
+        if ($delivery->status !== 'picked_up') {
+            return response()->json([
+                'message' => 'Parcel must be picked up from the seller before it can be handed over to the sorting center.',
+                'errors' => ['status' => ["Invalid status transition from '{$delivery->status}'."]],
+            ], 409);
+        }
+
+        if ($delivery->sorting_center_handoff_at !== null) {
+            return response()->json([
+                'message' => 'Parcel has already been handed over to the sorting center.',
+                'errors' => ['sorting_center_handoff_at' => ['Already handed over.']],
+            ], 409);
+        }
+
+        if (in_array($delivery->status, ['delivered', 'delivery_failed', 'cancelled'], true)) {
+            return $this->invalidTransition($delivery);
+        }
+
+        // Center scoping: if delivery already has a handling center, rider must belong to it.
+        $rider = $request->user()->rider;
+        if ($delivery->center_id !== null && $rider->center_id !== null && (int) $delivery->center_id !== (int) $rider->center_id) {
+            return response()->json([
+                'message' => 'This parcel belongs to a different logistics center.',
+                'errors' => ['center_id' => ['Wrong logistics center.']],
+            ], 403);
+        }
+
+        DB::transaction(function () use ($delivery, $rider) {
+            $delivery->update([
+                'sorting_center_handoff_at' => now(),
+                'sorting_center_handoff_rider_id' => $rider->id,
+                // Make parcel visible to the rider's center if handling center not yet set.
+                'center_id' => $delivery->center_id ?? $rider->center_id,
+            ]);
+
+            DeliveryStatusLog::create([
+                'delivery_id' => $delivery->id,
+                'status' => 'sorting_center_handoff',
+                'notes' => 'Parcel handed over to sorting center by ' . $rider->name . '.',
+            ]);
+        });
+
+        return response()->json([
+            'message' => 'Parcel handed over to sorting center.',
+            'delivery' => $this->detailPayload($delivery->fresh()->load(['items', 'statusLogs', 'proof', 'failure'])),
+        ]);
+    }
+
+    /**
+     * Pick up parcel from the sorting center (delivery rider leg).
+     *
+     * Requires: sorting center has received/scanned/sorted, parcel is assigned
+     * to the requesting rider, ready for dispatch, and not already picked up.
+     */
+    public function sortingCenterPickup(Request $request, Delivery $delivery): JsonResponse
+    {
+        $this->authorizeDelivery($request, $delivery);
+
+        if ($delivery->sorting_center_handoff_at === null) {
+            return response()->json([
+                'message' => 'Parcel has not yet been handed over to the sorting center.',
+                'errors' => ['sorting_center_handoff_at' => ['Handoff not yet recorded.']],
+            ], 409);
+        }
+
+        if ($delivery->sorting_center_pickup_at !== null) {
+            return response()->json([
+                'message' => 'Parcel has already been picked up from the sorting center.',
+                'errors' => ['sorting_center_pickup_at' => ['Already picked up from sorting center.']],
+            ], 409);
+        }
+
+        if ($delivery->parcel_status !== 'sorted') {
+            return response()->json([
+                'message' => 'Parcel must be received, scanned and sorted before it can be picked up from the sorting center.',
+                'errors' => ['parcel_status' => ["Parcel status is '{$delivery->parcel_status}', expected 'sorted'."]],
+            ], 409);
+        }
+
+        if ($delivery->parcel_status === 'dispatched') {
+            return response()->json([
+                'message' => 'Parcel has already been dispatched.',
+                'errors' => ['parcel_status' => ['Already dispatched.']],
+            ], 409);
+        }
+
+        if (! in_array($delivery->status, ['assigned', 'accepted'], true)) {
+            return response()->json([
+                'message' => 'Parcel must be assigned to you before it can be picked up from the sorting center.',
+                'errors' => ['status' => ["Invalid status '{$delivery->status}' for sorting center pickup."]],
+            ], 409);
+        }
+
+        if (in_array($delivery->status, ['delivered', 'delivery_failed', 'cancelled'], true)) {
+            return $this->invalidTransition($delivery);
+        }
+
+        $rider = $request->user()->rider;
+
+        // Parcel must be assigned specifically to this rider (authorizeDelivery already guarantees rider_id match).
+
+        DB::transaction(function () use ($delivery, $rider) {
+            $now = now();
+            $delivery->update([
+                'sorting_center_pickup_at' => $now,
+                'sorting_center_pickup_rider_id' => $rider->id,
+                'parcel_status' => 'dispatched',
+                'dispatched_at' => $delivery->dispatched_at ?? $now,
+            ]);
+
+            DeliveryStatusLog::create([
+                'delivery_id' => $delivery->id,
+                'status' => 'sorting_center_pickup',
+                'notes' => 'Parcel picked up from sorting center by ' . $rider->name . '.',
+            ]);
+
+            // Also record canonical dispatched log if not already present (keeps web pipeline consistent).
+            if (! DeliveryStatusLog::where('delivery_id', $delivery->id)->where('status', 'dispatched')->exists()) {
+                DeliveryStatusLog::create([
+                    'delivery_id' => $delivery->id,
+                    'status' => 'dispatched',
+                    'notes' => 'Parcel dispatched from handling center (via rider pickup).',
+                ]);
+            }
+        });
+
+        return response()->json([
+            'message' => 'Parcel picked up from sorting center.',
+            'delivery' => $this->detailPayload($delivery->fresh()->load(['items', 'statusLogs', 'proof', 'failure'])),
         ]);
     }
 

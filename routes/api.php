@@ -52,6 +52,8 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/deliveries/{delivery}/accept', [RiderDeliveryController::class, 'accept']);
         Route::patch('/deliveries/{delivery}/status', [RiderDeliveryController::class, 'updateStatus']);
         Route::post('/deliveries/{delivery}/pickup', [RiderDeliveryController::class, 'pickup']);
+        Route::post('/deliveries/{delivery}/sorting-center-handoff', [RiderDeliveryController::class, 'sortingCenterHandoff']);
+        Route::post('/deliveries/{delivery}/sorting-center-pickup', [RiderDeliveryController::class, 'sortingCenterPickup']);
         Route::post('/deliveries/{delivery}/complete', [RiderDeliveryController::class, 'complete']);
         Route::post('/deliveries/{delivery}/failed', [RiderDeliveryController::class, 'failed']);
 

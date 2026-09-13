@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Delivery;
+use App\Models\DeliveryFailure;
 use App\Models\DeliveryStatusLog;
 use App\Models\LogisticsSetting;
 use App\Models\Rider;
@@ -190,8 +191,18 @@ class DeliveryController extends Controller
         }
     }
 
+    private function ensureCenterAccess(Delivery $delivery): void
+    {
+        $user = Auth::user();
+        if ($user && $user->isStaff() && $delivery->center_id !== null && (int) $user->center_id !== (int) $delivery->center_id) {
+            abort(403, 'You do not have access to deliveries from this logistics center.');
+        }
+    }
+
     public function show(Delivery $delivery): View
     {
+        $this->ensureCenterAccess($delivery);
+
         $delivery->load([
             'statusLogs.changer',
             'proofs.rider',
@@ -314,6 +325,8 @@ class DeliveryController extends Controller
 
     public function edit(Delivery $delivery): View
     {
+        $this->ensureCenterAccess($delivery);
+
         return view('deliveries.edit', [
             'delivery' => $delivery,
         ]);
@@ -321,6 +334,8 @@ class DeliveryController extends Controller
 
     public function update(Request $request, Delivery $delivery): RedirectResponse
     {
+        $this->ensureCenterAccess($delivery);
+
         $validated = $this->validateDelivery($request);
 
         $delivery->update($validated);
@@ -330,6 +345,8 @@ class DeliveryController extends Controller
 
     public function assignRider(Request $request, Delivery $delivery): RedirectResponse
     {
+        $this->ensureCenterAccess($delivery);
+
         $validated = $request->validate([
             'rider_id' => 'required|exists:riders,id',
         ]);
@@ -417,6 +434,8 @@ class DeliveryController extends Controller
 
     public function updateStatus(Request $request, Delivery $delivery): RedirectResponse
     {
+        $this->ensureCenterAccess($delivery);
+
         $validated = $request->validate([
             'status' => 'required|in:waiting_for_rider,assigned,accepted,going_to_pickup,arrived_at_shop,picked_up,out_for_delivery,arrived_at_customer,delivered,delivery_failed,cancelled',
             'reason' => 'nullable|string',
@@ -442,7 +461,7 @@ class DeliveryController extends Controller
 
         $reasonText = null;
 
-        if ($target === 'failed') {
+        if ($target === 'delivery_failed') {
             $reasons = config('logistics.failure_reasons');
             $request->validate(['reason' => 'required|in:' . implode(',', $reasons)]);
             $reasonText = $validated['reason'];
@@ -498,6 +517,17 @@ class DeliveryController extends Controller
 
             $delivery->save();
 
+            if ($target === 'delivery_failed' && $delivery->rider_id) {
+                DeliveryFailure::firstOrCreate(
+                    ['delivery_id' => $delivery->id],
+                    [
+                        'rider_id' => $delivery->rider_id,
+                        'reason' => $reasonText ?? 'Delivery failed',
+                        'reported_at' => $now,
+                    ]
+                );
+            }
+
             DeliveryStatusLog::create([
                 'delivery_id' => $delivery->id,
                 'status' => $target,
@@ -519,7 +549,7 @@ class DeliveryController extends Controller
             'picked_up' => ['Rider Picked Up Order', "{$riderName} has picked up Order #{$delivery->id} from sender.", '📍', 'normal'],
             'out_for_delivery' => ['Out for Delivery', "Order #{$delivery->id} is now out for delivery.", '🚚', 'normal'],
             'delivered' => ['Delivery Completed', "Order #{$delivery->id} was successfully delivered.", '✅', 'normal'],
-            'failed' => ['Delivery Failed', "Order #{$delivery->id} failed. Reason: {$reasonText}", '⚠️', 'high'],
+            'delivery_failed' => ['Delivery Failed', "Order #{$delivery->id} failed. Reason: {$reasonText}", '⚠️', 'high'],
             'cancelled' => ['Delivery Cancelled', "Order #{$delivery->id} was cancelled. Reason: {$reasonText}", '🚫', 'high'],
         ];
 

@@ -1,16 +1,18 @@
 <x-app-layout>
     @php
         $dotColors = [
-            'waiting_for_rider' => 'bg-amber-500',
-            'assigned'          => 'bg-blue-500',
-            'picked_up'         => 'bg-indigo-500',
-            'out_for_delivery'  => 'bg-purple-500',
-            'delivered'         => 'bg-emerald-500',
-            'delivery_failed'   => 'bg-red-500',
-            'cancelled'         => 'bg-gray-400',
-            'dispatched'        => 'bg-sky-500',
-            'archived'          => 'bg-gray-300',
-            'restored'          => 'bg-teal-500',
+            'waiting_for_rider'      => 'bg-amber-500',
+            'assigned'               => 'bg-blue-500',
+            'picked_up'              => 'bg-indigo-500',
+            'out_for_delivery'       => 'bg-purple-500',
+            'delivered'              => 'bg-emerald-500',
+            'delivery_failed'        => 'bg-red-500',
+            'cancelled'              => 'bg-gray-400',
+            'dispatched'             => 'bg-sky-500',
+            'sorting_center_handoff' => 'bg-orange-500',
+            'sorting_center_pickup'  => 'bg-cyan-500',
+            'archived'               => 'bg-gray-300',
+            'restored'               => 'bg-teal-500',
         ];
         $stepOrder = ['assigned', 'picked_up', 'out_for_delivery', 'delivered'];
         $stepLabels = ['assigned' => 'Assigned', 'picked_up' => 'Picked Up', 'out_for_delivery' => 'Out for Delivery', 'delivered' => 'Delivered'];
@@ -317,14 +319,16 @@
                     </form>
                 @endif
 
-                @if(in_array($delivery->parcel_status, ['received', 'scanned', 'sorted', 'dispatched']) && $delivery->logisticsCenter)
+                @if($delivery->sorting_center_handoff_at || $delivery->sorting_center_pickup_at || (in_array($delivery->parcel_status, ['received', 'scanned', 'sorted', 'dispatched']) && $delivery->logisticsCenter))
                     <div class="w-full flex flex-wrap items-center gap-x-6 gap-y-1 text-xs text-gray-500 bg-gray-50 rounded-xl px-4 py-3">
                         @if($delivery->logisticsCenter)<span><strong class="text-gray-700">Handling Center:</strong> {{ $delivery->logisticsCenter->name }}</span>@endif
+                        @if($delivery->sorting_center_handoff_at)<span><strong class="text-gray-700">Handed to Center:</strong> {{ $delivery->sorting_center_handoff_at->format('M d, Y h:i A') }}</span>@endif
                         @if($delivery->received_at)<span><strong class="text-gray-700">Received:</strong> {{ $delivery->received_at->format('M d, Y h:i A') }}</span>@endif
                         @if($delivery->scanned_at)<span><strong class="text-gray-700">Scanned:</strong> {{ $delivery->scanned_at->format('M d, Y h:i A') }}</span>@endif
                         @if($delivery->destinationCenter)<span><strong class="text-gray-700">Destination:</strong> {{ $delivery->destinationCenter->name }}</span>@endif
                         @if($delivery->serviceArea)<span><strong class="text-gray-700">Service Area:</strong> {{ $delivery->serviceArea->name }}</span>@endif
                         @if($delivery->sorted_at)<span><strong class="text-gray-700">Sorted:</strong> {{ $delivery->sorted_at->format('M d, Y h:i A') }}</span>@endif
+                        @if($delivery->sorting_center_pickup_at)<span><strong class="text-gray-700">Picked from Center:</strong> {{ $delivery->sorting_center_pickup_at->format('M d, Y h:i A') }}</span>@endif
                         @if($delivery->dispatched_at)<span><strong class="text-gray-700">Dispatched:</strong> {{ $delivery->dispatched_at->format('M d, Y h:i A') }}</span>@endif
                     </div>
                 @endif
