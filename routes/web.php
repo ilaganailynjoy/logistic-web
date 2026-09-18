@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\CentralEntryController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DeliveryController;
 use App\Http\Controllers\RiderController;
@@ -16,12 +17,24 @@ use App\Http\Controllers\TransactionController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\RiderApplicationAdminController;
 use App\Http\Controllers\CenterApplicationAdminController;
+use App\Http\Controllers\CenterApplicationPublicController;
 use App\Http\Controllers\PickupRequestController;
 use Illuminate\Support\Facades\Route;
 
-Route::get('/', function () {
-    return redirect()->route('login');
-});
+// ── Central entry: guests see the public landing page, authenticated
+// users are routed to their role destination (never a platform chooser).
+Route::get('/', [CentralEntryController::class, 'index'])->name('landing');
+
+// ── Public: Open a Logistics Center / check application status ──
+// Shared logic with the mobile API via CenterApplicationService.
+Route::get('logistics-center/apply', [CenterApplicationPublicController::class, 'create'])
+    ->name('center-application.apply');
+Route::post('logistics-center/apply', [CenterApplicationPublicController::class, 'store'])
+    ->name('center-application.store');
+Route::get('logistics-center/application-status', [CenterApplicationPublicController::class, 'status'])
+    ->name('center-application.status');
+Route::post('logistics-center/application-status', [CenterApplicationPublicController::class, 'check'])
+    ->name('center-application.status.check');
 
 Route::get('/dashboard', [DashboardController::class, 'index'])
     ->middleware(['auth', 'verified', 'staff'])
@@ -30,6 +43,11 @@ Route::get('/dashboard', [DashboardController::class, 'index'])
 Route::middleware(['auth', 'verified', 'staff'])->group(function () {
 
     // ── Deliveries ──────────────────────────────────────────
+    // Parcel QR scanner (page + verify endpoint). The GET route must be
+    // registered before the resource below so "deliveries/scan" is not
+    // captured by the "deliveries/{delivery}" show route.
+    Route::get('deliveries/scan', [DeliveryController::class, 'scanPage'])->name('deliveries.scan-page');
+    Route::post('deliveries/scan-verify', [DeliveryController::class, 'scanByTracking'])->name('deliveries.scan-verify');
     Route::resource('deliveries', DeliveryController::class)->except(['destroy']);
     Route::post('deliveries/{delivery}/assign-rider', [DeliveryController::class, 'assignRider'])->name('deliveries.assign-rider');
     Route::patch('deliveries/{delivery}/update-status', [DeliveryController::class, 'updateStatus'])->name('deliveries.update-status');
@@ -109,12 +127,16 @@ Route::middleware(['auth', 'verified', 'staff'])->group(function () {
     Route::get('reports/export', [ReportController::class, 'export'])->name('reports.export');
 
     // ── Settings ────────────────────────────────────────────
+    // (Profile editing lives only on the Profile page; Settings manages
+    // preferences and account configuration.)
     Route::get('settings', [SettingController::class, 'index'])->name('settings.index');
-    Route::put('settings/profile', [SettingController::class, 'updateProfile'])->name('settings.update-profile');
     Route::put('settings/password', [SettingController::class, 'updatePassword'])->name('settings.update-password');
     Route::post('settings/photo', [SettingController::class, 'updatePhoto'])->name('settings.update-photo');
     Route::put('settings/notifications', [SettingController::class, 'updateNotifications'])->name('settings.update-notifications');
     Route::put('settings/delivery', [SettingController::class, 'updateDelivery'])->name('settings.update-delivery');
+    Route::put('settings/appearance', [SettingController::class, 'updateAppearance'])->name('settings.update-appearance');
+    Route::put('settings/region', [SettingController::class, 'updateRegion'])->name('settings.update-region');
+    Route::patch('settings/navigation', [SettingController::class, 'updateNavigation'])->name('settings.update-navigation');
 
     // ── Notifications ───────────────────────────────────────
     Route::get('notifications', [NotificationController::class, 'index'])->name('notifications.index');
@@ -132,14 +154,16 @@ Route::middleware(['auth', 'verified', 'staff'])->group(function () {
     Route::get('attachments/{attachment}/view', [MessageController::class, 'viewAttachment'])->name('messages.attachments.view');
     Route::get('attachments/{attachment}/download', [MessageController::class, 'downloadAttachment'])->name('messages.attachments.download');
 
-    // ── Profile ─────────────────────────────────────────────
-    Route::get('profile', [ProfileController::class, 'edit'])->name('profile.edit');
+    // ── Profile (personal info + photo; Settings stays separate) ──────
+    Route::get('profile', [ProfileController::class, 'show'])->name('profile.show');
+    Route::post('profile/photo', [ProfileController::class, 'updatePhoto'])->name('profile.update-photo');
     Route::patch('profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 });
 
 // Rider messaging only (riders access via Logistics login, messaging only)
 Route::middleware(['auth', 'rider.web'])->group(function () {
+    Route::get('rider/entry', [CentralEntryController::class, 'riderEntry'])->name('rider.entry');
     Route::get('rider/messages', [RiderMessageController::class, 'index'])->name('rider.messages');
     Route::get('rider/messages/poll', [RiderMessageController::class, 'poll'])->name('rider.messages.poll');
     Route::post('rider/messages', [RiderMessageController::class, 'store'])->name('rider.messages.send');

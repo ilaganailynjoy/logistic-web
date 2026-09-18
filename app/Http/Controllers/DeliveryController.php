@@ -13,6 +13,7 @@ use App\Models\ServiceArea;
 use App\Models\Transaction;
 use App\Models\PickupRequest;
 use App\Rules\PhilippinePhone;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -208,7 +209,43 @@ class DeliveryController extends Controller
             'proofs.rider',
             'rider',
             'creator',
+            'items',
+            'logisticsCenter',
+            'destinationCenter',
+            'serviceArea',
+            'order.buyer',
+            'order.items.seller',
         ]);
+
+        // Read-only order-side context for the unified shipping waybill.
+        // No writes; the Buyer/Seller/Order systems are never modified here.
+        $waybillOrder = $delivery->order;
+        $waybillAddress = null;
+        $waybillPayment = null;
+        $waybillDiscount = 0.0;
+        $waybillStores = collect();
+        if ($waybillOrder) {
+            $waybillAddress = DB::table('addresses')
+                ->where('id', $waybillOrder->address_id)
+                ->first();
+            $waybillPayment = DB::table('payments')
+                ->where('order_id', $waybillOrder->id)
+                ->first();
+            $waybillDiscount = (float) DB::table('order_vouchers')
+                ->where('order_id', $waybillOrder->id)
+                ->sum('discount_amount');
+            $sellerIds = $waybillOrder->items
+                ->pluck('seller_id')
+                ->filter()
+                ->unique()
+                ->values();
+            if ($sellerIds->isNotEmpty()) {
+                $waybillStores = DB::table('sellers')
+                    ->whereIn('user_id', $sellerIds)
+                    ->get()
+                    ->keyBy('user_id');
+            }
+        }
 
         $weight = (float) ($delivery->weight ?? 0);
 
@@ -253,6 +290,11 @@ class DeliveryController extends Controller
 
         return view('deliveries.show', [
             'delivery' => $delivery,
+            'waybillOrder' => $waybillOrder,
+            'waybillAddress' => $waybillAddress,
+            'waybillPayment' => $waybillPayment,
+            'waybillDiscount' => $waybillDiscount,
+            'waybillStores' => $waybillStores,
             'riderEligibility' => $riderEligibility,
             'failureReasons' => config('logistics.failure_reasons'),
             'cancellationReasons' => config('logistics.cancellation_reasons'),
@@ -383,6 +425,25 @@ class DeliveryController extends Controller
         // rider's status history. Failed deliveries stay assignable (retry).
         if (in_array($delivery->status, ['delivered', 'cancelled'], true)) {
             return back()->withErrors(['rider_id' => 'Cannot assign delivery. Delivered and cancelled deliveries cannot be reassigned.']);
+        }
+
+        // Delivery preferences from Settings are enforced here: blocked
+        // reassignment when the user disabled it, and no further retries
+        // once the delivery exhausted its configured attempt budget.
+        $preferences = LogisticsSetting::forUser(Auth::id())->delivery ?? [];
+        $isReassignment = $delivery->rider_id && (int) $delivery->rider_id !== (int) $rider->id;
+
+        if ($isReassignment && ! ($preferences['allow_reassignment'] ?? true)) {
+            return back()->withErrors(['rider_id' => 'Rider reassignment is disabled in your Delivery Preferences (Settings). Enable "Allow Rider Reassignment" to move this delivery to another rider.']);
+        }
+
+        $maxAttempts = (int) ($preferences['max_attempts'] ?? 2);
+        $failedAttempts = DeliveryStatusLog::where('delivery_id', $delivery->id)
+            ->where('status', 'delivery_failed')
+            ->count();
+
+        if ($failedAttempts >= $maxAttempts) {
+            return back()->withErrors(['rider_id' => "This delivery has used all {$maxAttempts} of its {$maxAttempts} delivery attempts. Raise \"Maximum Delivery Attempts\" in Settings to allow another retry."]);
         }
 
         $weight = (float) ($delivery->weight ?? 0);
@@ -713,6 +774,102 @@ class DeliveryController extends Controller
         ]);
 
         return redirect()->back()->with('success', 'Parcel scanned successfully.');
+    }
+
+    public function scanPage(Request $request): View
+    {
+        $expect = strtoupper(trim((string) $request->query('expect', '')));
+
+        $expected = null;
+        if ($expect !== '' && preg_match('/^TRK-\d{8}-[A-Z0-9]{4}$/', $expect)) {
+            $expected = Delivery::notArchived()->where('tracking_number', $expect)->first();
+            if ($expected) {
+                $user = Auth::user();
+                if ($user->isStaff() && $user->center_id && $expected->center_id !== null && (int) $user->center_id !== (int) $expected->center_id) {
+                    $expected = null;
+                }
+            }
+        }
+
+        return view('deliveries.scan', [
+            'expect' => $expect,
+            'expectedDelivery' => $expected,
+        ]);
+    }
+
+    public function scanByTracking(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'tracking_number' => ['required', 'string', 'max:40', 'regex:/^TRK-\d{8}-[A-Z0-9]{4}$/i'],
+        ]);
+
+        $trackingNumber = strtoupper($validated['tracking_number']);
+
+        $delivery = Delivery::notArchived()->where('tracking_number', $trackingNumber)->first();
+
+        if (! $delivery) {
+            return response()->json([
+                'ok' => false,
+                'error' => 'not_found',
+                'message' => 'No parcel found with tracking number ' . $trackingNumber . '.',
+            ], 404);
+        }
+
+        $user = Auth::user();
+        if ($user->isStaff() && $user->center_id && $delivery->center_id !== null && (int) $user->center_id !== (int) $delivery->center_id) {
+            return response()->json([
+                'ok' => false,
+                'error' => 'forbidden',
+                'message' => 'This parcel belongs to another logistics center.',
+            ], 403);
+        }
+
+        if ($delivery->parcel_status === 'scanned') {
+            return response()->json([
+                'ok' => true,
+                'already' => true,
+                'message' => 'Parcel was already scanned' . ($delivery->scanned_at ? ' on ' . $delivery->scanned_at->format('M d, Y h:i A') : '') . '.',
+                'delivery' => $this->scanResultPayload($delivery),
+            ]);
+        }
+
+        if ($delivery->parcel_status !== 'received') {
+            return response()->json([
+                'ok' => false,
+                'error' => 'invalid_state',
+                'message' => 'Parcel must be received before scanning (current status: ' . str_replace('_', ' ', $delivery->parcel_status ?? 'pending_arrival') . ').',
+                'delivery' => $this->scanResultPayload($delivery),
+            ], 422);
+        }
+
+        $delivery->update([
+            'parcel_status' => 'scanned',
+            'scanned_at' => now(),
+        ]);
+
+        DeliveryStatusLog::create([
+            'delivery_id' => $delivery->id,
+            'status' => 'scanned',
+            'notes' => 'Parcel scanned and verified via QR.',
+            'changed_by' => Auth::id(),
+        ]);
+
+        return response()->json([
+            'ok' => true,
+            'message' => 'Parcel scanned successfully.',
+            'delivery' => $this->scanResultPayload($delivery),
+        ]);
+    }
+
+    private function scanResultPayload(Delivery $delivery): array
+    {
+        return [
+            'tracking_number' => $delivery->tracking_number,
+            'recipient_name' => $delivery->recipient_name,
+            'parcel_status' => $delivery->parcel_status,
+            'scanned_at' => $delivery->scanned_at?->toIso8601String(),
+            'show_url' => route('deliveries.show', $delivery),
+        ];
     }
 
     public function sort(Request $request, Delivery $delivery): RedirectResponse

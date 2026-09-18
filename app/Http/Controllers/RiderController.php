@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Rider;
 use App\Models\Delivery;
 use App\Models\LogisticsCenter;
+use App\Models\Notification;
 use App\Models\ServiceArea;
 use Illuminate\Http\Request;
 use Illuminate\Http\RedirectResponse;
@@ -99,6 +100,15 @@ class RiderController extends Controller
 
         $rider->update(['status' => $hasActiveDelivery ? 'delivering' : 'available']);
 
+        Notification::create([
+            'type' => 'rider_status_changed',
+            'title' => 'Rider Activated',
+            'message' => "Rider {$rider->name} is now {$rider->fresh()->status}.",
+            'icon' => '🟢',
+            'priority' => 'normal',
+            'link' => route('riders.show', $rider),
+        ]);
+
         return back()->with('success', "Rider {$rider->name} activated and eligible for delivery assignment.");
     }
 
@@ -111,6 +121,15 @@ class RiderController extends Controller
         }
 
         $rider->update(['status' => 'inactive']);
+
+        Notification::create([
+            'type' => 'rider_status_changed',
+            'title' => 'Rider Deactivated',
+            'message' => "Rider {$rider->name} is now inactive.",
+            'icon' => '🔴',
+            'priority' => 'normal',
+            'link' => route('riders.show', $rider),
+        ]);
 
         return back()->with('success', "Rider {$rider->name} deactivated. Existing deliveries have been preserved.");
     }

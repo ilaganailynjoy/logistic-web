@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Auth;
 
+use App\Http\Controllers\CentralEntryController;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\LoginRequest;
 use App\Models\Delivery;
@@ -41,12 +42,14 @@ class AuthenticatedSessionController extends Controller
         // the browser always requires a fresh login.
         cookie()->queue(cookie()->forget(Auth::guard('web')->getRecallerName()));
 
-        // Riders land on their messaging page, not the Logistics dashboard.
-        if ($request->user()->role === 'rider') {
-            return redirect()->intended(route('rider.messages', absolute: false));
-        }
+        // Role destination comes from the single central-entry decision
+        // point: no intermediate platform choice, intended URLs preserved.
+        // (Buyer/seller accounts never reach here: LoginRequest admits only
+        // admin/staff/rider to this login form.)
+        $destination = CentralEntryController::destinationFor($request->user())
+            ?? route('landing', absolute: false);
 
-        return redirect()->intended(route('dashboard', absolute: false));
+        return redirect()->intended($destination);
     }
 
     /**

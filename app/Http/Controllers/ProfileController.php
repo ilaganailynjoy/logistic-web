@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\ProfileUpdateRequest;
+use App\Models\LogisticsSetting;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -11,6 +12,32 @@ use Illuminate\View\View;
 
 class ProfileController extends Controller
 {
+    /**
+     * Display the user's dedicated Profile page: personal information and
+     * profile-photo functionality (separate from the Settings page).
+     */
+    public function show(Request $request): View
+    {
+        return view('profile.show', [
+            'user' => $request->user(),
+            'settings' => LogisticsSetting::forUser($request->user()->id),
+        ]);
+    }
+
+    /**
+     * Update the authenticated user's profile photo.
+     */
+    public function updatePhoto(Request $request): RedirectResponse
+    {
+        $request->validate([
+            'photo' => 'required|image|mimes:jpg,jpeg,png,webp|max:2048',
+        ]);
+
+        LogisticsSetting::forUser($request->user()->id)->savePhoto($request->file('photo'));
+
+        return Redirect::route('profile.show')->with('success', 'Profile photo updated successfully.');
+    }
+
     /**
      * Display the user's profile form.
      */
@@ -22,19 +49,21 @@ class ProfileController extends Controller
     }
 
     /**
-     * Update the user's profile information.
+     * Update the user's profile information, optionally saving a new
+     * profile photo together with the changes, then return to the Profile
+     * page with a success message.
      */
     public function update(ProfileUpdateRequest $request): RedirectResponse
     {
-        $request->user()->fill($request->validated());
+        $user = $request->user();
+        $user->fill($request->validated());
+        $user->save();
 
-        if ($request->user()->isDirty('email')) {
-            $request->user()->email_verified_at = null;
+        if ($request->hasFile('photo')) {
+            LogisticsSetting::forUser($user->id)->savePhoto($request->file('photo'));
         }
 
-        $request->user()->save();
-
-        return Redirect::route('profile.edit')->with('status', 'profile-updated');
+        return Redirect::route('profile.show')->with('success', 'Profile updated successfully.');
     }
 
     /**

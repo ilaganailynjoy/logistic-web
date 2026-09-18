@@ -226,7 +226,7 @@ class RiderApplicationAdminController extends Controller
         abort_unless($document->fileExists(), 404, 'Document is missing or was deleted.');
 
         return response()->file($document->absolutePath(), [
-            'Content-Type' => $document->mime_type ?: 'application/octet-stream',
+            'Content-Type' => $document->contentMime(),
             'Content-Disposition' => $disposition . '; filename="' . basename($document->original_filename) . '"',
         ]);
     }

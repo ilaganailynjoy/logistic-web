@@ -171,7 +171,7 @@ class RiderMessageController extends Controller
         abort_unless($attachment->fileExists(), 404, 'Attachment is missing or was deleted.');
 
         return response()->file($attachment->absolutePath(), [
-            'Content-Type' => $attachment->mime_type ?: 'application/octet-stream',
+            'Content-Type' => $attachment->contentMime(),
             'Content-Disposition' => $disposition . '; filename="' . basename($attachment->original_filename) . '"',
         ]);
     }

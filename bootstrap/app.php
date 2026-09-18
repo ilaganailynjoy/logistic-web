@@ -5,6 +5,7 @@ use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Request;
 
+use App\Http\Middleware\ApplyUserTimezone;
 use App\Http\Middleware\EnsureRiderRole;
 use App\Http\Middleware\EnsureRiderWeb;
 use App\Http\Middleware\EnsureLogisticsStaff;
@@ -19,6 +20,7 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        $middleware->appendToGroup('web', ApplyUserTimezone::class);
         $middleware->alias([
             'role' => EnsureRiderRole::class,
             'staff' => EnsureLogisticsStaff::class,

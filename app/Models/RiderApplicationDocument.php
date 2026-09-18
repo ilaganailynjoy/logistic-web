@@ -79,4 +79,27 @@ class RiderApplicationDocument extends Model
     {
         return is_file($this->absolutePath());
     }
+
+    /**
+     * MIME type to serve. Trusts the stored value unless it is missing or the
+     * generic octet-stream fallback; in those cases the actual file contents
+     * are sniffed so browsers can preview images/PDFs inline instead of
+     * silently downloading them.
+     */
+    public function contentMime(): string
+    {
+        if ($this->mime_type && $this->mime_type !== 'application/octet-stream') {
+            return $this->mime_type;
+        }
+
+        $path = $this->absolutePath();
+        if (is_file($path) && class_exists(\Finfo::class)) {
+            $detected = (new \Finfo(\FILEINFO_MIME_TYPE))->file($path);
+            if ($detected && $detected !== 'application/octet-stream') {
+                return $detected;
+            }
+        }
+
+        return $this->mime_type ?: 'application/octet-stream';
+    }
 }

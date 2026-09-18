@@ -2,6 +2,7 @@
     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <div class="flex items-center gap-4">
             <a href="{{ route('center-applications.index') }}"
+               aria-label="Back to center applications"
                class="p-2 bg-white border border-gray-200 rounded-xl text-gray-500 hover:text-teal-dark hover:border-teal transition shadow-sm">
                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
             </a>
@@ -106,8 +107,8 @@
                             <p class="text-xs text-gray-500 truncate mt-0.5">{{ $document->original_filename }}</p>
                             <p class="text-xs text-gray-400 mt-0.5">{{ $document->humanSize() }}</p>
                             @if($document->fileExists())
-                                <div class="mt-2 flex items-center gap-3">
-                                    <a href="{{ route('center-applications.documents.view', $document) }}" target="_blank" class="inline-flex items-center gap-1 text-xs font-semibold text-teal-dark hover:text-teal">
+                                <div class="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1">
+                                    <a href="{{ route('center-applications.documents.view', $document) }}" target="_blank" rel="noopener" class="inline-flex items-center gap-1 text-xs font-semibold text-teal-dark hover:text-teal">
                                         <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
                                         View
                                     </a>

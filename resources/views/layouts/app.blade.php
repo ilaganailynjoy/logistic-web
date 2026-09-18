@@ -1,4 +1,14 @@
 <!DOCTYPE html>
+@php
+    // Per-user shell preferences (read-only here: never creates a settings
+    // row as a side effect of rendering the layout).
+    $layoutSettings = auth()->check()
+        ? \App\Models\LogisticsSetting::where('user_id', auth()->id())->first()
+        : null;
+    $userTheme = $layoutSettings?->theme() ?? 'light';
+    $sidebarRemember = (bool) ($layoutSettings?->rememberSidebar());
+    $sidebarStartExpanded = $sidebarRemember && (bool) ($layoutSettings?->sidebarExpanded());
+@endphp
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
     <head>
         <meta charset="utf-8">
@@ -7,9 +17,26 @@
 
         <title>{{ config('app.name', 'Logistics') }}</title>
 
+        <script>
+            // Apply the saved appearance before first paint (Settings →
+            // Appearance). Runs inline so there is no light-mode flash.
+            window.__invoizTheme = @js($userTheme);
+            (function () {
+                var t = window.__invoizTheme;
+                if (t === 'dark' || (t === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+                    document.documentElement.classList.add('dark');
+                }
+                if (t === 'system' && window.matchMedia) {
+                    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function (e) {
+                        document.documentElement.classList.toggle('dark', e.matches);
+                    });
+                }
+            })();
+        </script>
         <script src="https://cdn.tailwindcss.com"></script>
         <script>
             tailwind.config = {
+                darkMode: 'class',
                 theme: {
                     extend: {
                         colors: {
@@ -28,42 +55,75 @@
                 },
             };
         </script>
+        <style>
+            /* Class-based dark theme (Settings → Appearance). Only the neutral
+               surfaces/text flip; teal/amber/functional colors are untouched. */
+            .dark { color-scheme: dark; }
+            .dark body { background-color: #111827; color: #F3F4F6; }
+            .dark .bg-white, .dark .bg-white\/90, .dark .bg-white\/95 { background-color: #1F2937; }
+            .dark .bg-gray-50, .dark .bg-gray-50\/50 { background-color: #374151; }
+            .dark .bg-gray-100, .dark .bg-surface-soft, .dark .bg-surface-soft\/50 { background-color: #374151; }
+            .dark .text-gray-900 { color: #F9FAFB; }
+            .dark .text-gray-800 { color: #F3F4F6; }
+            .dark .text-gray-700 { color: #E5E7EB; }
+            .dark .text-gray-600 { color: #D1D5DB; }
+            .dark .text-gray-500 { color: #9CA3AF; }
+            .dark .text-gray-400 { color: #6B7280; }
+            .dark .text-teal, .dark .text-teal-dark { color: #5EEAD4; }
+            .dark .hover\:text-teal:hover, .dark .hover\:text-teal-dark:hover { color: #5EEAD4; }
+            .dark .border-gray-100, .dark .border-gray-200, .dark .divide-gray-100, .dark .divide-gray-50,
+            .dark .ring-gray-200 { border-color: #374151; }
+            .dark .border-gray-300 { border-color: #4B5563; }
+            .dark .hover\:bg-gray-50:hover, .dark .hover\:bg-gray-100:hover, .dark .hover\:bg-gray-200:hover { background-color: #374151; }
+            .dark input, .dark select, .dark textarea { background-color: #111827; color: #F3F4F6; border-color: #4B5563; }
+            .dark input::placeholder, .dark textarea::placeholder { color: #6B7280; }
+        </style>
         <script defer src="https://cdn.jsdelivr.net/npm/@alpinejs/collapse@3.x.x/dist/cdn.min.js"></script>
         <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
     </head>
     <body class="font-sans bg-[#F7F6F2] text-[#1B1B1E] antialiased">
         <div class="min-h-screen" x-data="{
-            sidebarHover: false,
-            sidebarHoverTimeout: null,
+            sidebarHover: @js($sidebarStartExpanded),
+            deliveriesOpen: @js(request()->routeIs('deliveries.scan-page')),
+            applicationsOpen: @js(request()->routeIs('center-applications.*')),
+            navPersistTimeout: null,
             notifOpen: false,
             notifications: [],
             unreadCount: 0,
             get sidebarVisible() { return this.sidebarHover; },
-            openSidebarHover() {
-                clearTimeout(this.sidebarHoverTimeout);
-                this.sidebarHover = true;
-            },
-            closeSidebarHover() {
-                this.sidebarHoverTimeout = setTimeout(() => { this.sidebarHover = false; }, 250);
+            toggleSidebar() {
+                this.sidebarHover = !this.sidebarHover;
             }
         }" x-init="
             fetch('{{ route('notifications.index') }}')
                 .then(r => r.json())
-                .then(d => { notifications = d.notifications; unreadCount = d.unread_count; })
+                .then(d => { notifications = d.notifications; unreadCount = d.unread_count; });
+            @if($sidebarRemember)
+            $watch('sidebarHover', (expanded) => {
+                clearTimeout(this.navPersistTimeout);
+                this.navPersistTimeout = setTimeout(() => {
+                    fetch('{{ route('settings.update-navigation') }}', {
+                        method: 'PATCH',
+                        headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}', 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                        body: JSON.stringify({ sidebar_expanded: !!expanded })
+                    });
+                }, 800);
+            });
+            @endif
         ">
             @include('layouts.sidebar')
 
-            <!-- Overlay (behind expanded sidebar, above content) -->
-            <div x-show="sidebarVisible" @click="sidebarHover = false; clearTimeout(sidebarHoverTimeout);"
+            <!-- Overlay (mobile drawer: shown behind expanded sidebar on small screens) -->
+            <div x-show="sidebarVisible" @click="sidebarHover = false"
                  x-transition:enter="transition ease-out duration-200"
                  x-transition:enter-start="opacity-0"
                  x-transition:enter-end="opacity-100"
                  x-transition:leave="transition ease-in duration-150"
                  x-transition:leave-start="opacity-100"
                  x-transition:leave-end="opacity-0"
-                 class="fixed inset-0 z-30 bg-black/40"></div>
+                 class="fixed inset-0 z-30 bg-black/40 lg:hidden"></div>
 
-            <div class="flex flex-col min-h-screen pl-[68px]">
+            <div class="app-content flex flex-col min-h-screen">
                 <!-- Topbar -->
                 <header class="sticky top-0 z-20 bg-white/90 backdrop-blur border-b border-gray-200">
                     <div class="flex items-center justify-between px-4 sm:px-6 h-16">
@@ -139,7 +199,7 @@
                 <!-- Page Content -->
                 <main class="flex-1 p-4 sm:p-6 lg:p-8">
                     @if(session('success'))
-                        <div class="mb-5 flex items-start gap-3 bg-green-50 border border-green-200 text-green-800 px-4 py-3 rounded-xl text-sm" x-data="{ show: true }" x-show="show">
+                        <div role="status" class="mb-5 flex items-start gap-3 bg-green-50 border border-green-200 text-green-800 px-4 py-3 rounded-xl text-sm" x-data="{ show: true }" x-show="show">
                             <svg class="h-5 w-5 flex-shrink-0 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                             </svg>
@@ -148,7 +208,7 @@
                         </div>
                     @endif
                     @if(session('error'))
-                        <div class="mb-5 flex items-start gap-3 bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-xl text-sm" x-data="{ show: true }" x-show="show">
+                        <div role="alert" class="mb-5 flex items-start gap-3 bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-xl text-sm" x-data="{ show: true }" x-show="show">
                             <svg class="h-5 w-5 flex-shrink-0 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                             </svg>

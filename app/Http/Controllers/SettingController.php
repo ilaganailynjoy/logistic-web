@@ -2,12 +2,13 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\LoginHistory;
 use App\Models\LogisticsSetting;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Str;
 use Illuminate\View\View;
 
 class SettingController extends Controller
@@ -16,39 +17,25 @@ class SettingController extends Controller
     {
         $user = Auth::user();
         $settings = LogisticsSetting::forUser($user->id);
+        $loginHistory = LoginHistory::where('user_id', $user->id)
+            ->latest('logged_in_at')
+            ->take(10)
+            ->get();
+        $supportAdmin = \App\Models\User::where('role', 'admin')
+            ->whereNotNull('email')
+            ->orderBy('id')
+            ->first(['name', 'email']);
 
-        return view('settings.index', compact('user', 'settings'));
-    }
-
-    public function updateProfile(Request $request): RedirectResponse
-    {
-        $validated = $request->validate([
-            'name' => 'required|string|max:255',
-            'email' => 'required|email|max:255|unique:users,email,' . Auth::id(),
-            'phone' => 'nullable|string|max:20',
-        ]);
-
-        Auth::user()->update($validated);
-
-        return redirect()->route('settings.index')->with('success', 'Profile updated successfully.');
+        return view('settings.index', compact('user', 'settings', 'loginHistory', 'supportAdmin'));
     }
 
     public function updatePhoto(Request $request): RedirectResponse
     {
         $request->validate([
-            'photo' => 'required|image|mimes:jpg,jpeg,png|max:2048',
+            'photo' => 'required|image|mimes:jpg,jpeg,png,webp|max:2048',
         ]);
 
-        $settings = LogisticsSetting::forUser(Auth::id());
-        $file = $request->file('photo');
-        $filename = Str::uuid() . '.' . $file->getClientOriginalExtension();
-
-        if ($settings->photo_path && file_exists(public_path($settings->photo_path))) {
-            @unlink(public_path($settings->photo_path));
-        }
-
-        $file->move(public_path('uploads/avatars'), $filename);
-        $settings->update(['photo_path' => 'uploads/avatars/' . $filename]);
+        LogisticsSetting::forUser(Auth::id())->savePhoto($request->file('photo'));
 
         return redirect()->route('settings.index')->with('success', 'Profile photo updated successfully.');
     }
@@ -77,11 +64,74 @@ class SettingController extends Controller
         }
 
         LogisticsSetting::forUser(Auth::id())->update([
-            'notifications' => $notifications,
+            'notifications'      => $notifications,
             'email_notifications' => $request->boolean('email_notifications'),
         ]);
 
-        return redirect()->route('settings.index')->with('success', 'Notification settings saved.');
+        return redirect()->route('settings.index')->with('success', 'Notification preferences updated successfully.');
+    }
+
+    public function updateAppearance(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'theme' => 'required|in:' . implode(',', LogisticsSetting::THEMES),
+        ]);
+
+        LogisticsSetting::forUser(Auth::id())->savePreferences([
+            'theme' => $validated['theme'],
+        ]);
+
+        return redirect()->route('settings.index')->with('success', 'Appearance updated successfully.');
+    }
+
+    public function updateRegion(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'timezone' => 'required|in:' . implode(',', LogisticsSetting::TIMEZONES),
+        ]);
+
+        LogisticsSetting::forUser(Auth::id())->savePreferences([
+            'timezone' => $validated['timezone'],
+        ]);
+
+        return redirect()->route('settings.index')->with('success', 'Language & region updated successfully.');
+    }
+
+    /**
+     * Persist sidebar behaviour. Called by the layout itself (fetch) whenever
+     * the sidebar expand/collapse state changes, and by the Settings form.
+     */
+    public function updateNavigation(Request $request): JsonResponse|RedirectResponse
+    {
+        $validated = $request->validate([
+            'remember_sidebar' => 'sometimes|boolean',
+            'sidebar_expanded' => 'sometimes|boolean',
+        ]);
+
+        $settings = LogisticsSetting::forUser(Auth::id());
+
+        // Resolve the resulting remember flag first: the live expanded
+        // state is only stored when remembering ends up ON, otherwise the
+        // sidebar always starts collapsed.
+        $remember = array_key_exists('remember_sidebar', $validated)
+            ? (bool) $validated['remember_sidebar']
+            : $settings->rememberSidebar();
+
+        $input = [];
+        if (array_key_exists('remember_sidebar', $validated)) {
+            $input['remember_sidebar'] = $remember;
+        }
+        if (array_key_exists('sidebar_expanded', $validated) && $remember) {
+            $input['sidebar_expanded'] = (bool) $validated['sidebar_expanded'];
+        }
+
+        $settings->savePreferences($input);
+
+        if ($request->wantsJson()) {
+            return response()->json(['ok' => true]);
+        }
+
+        return redirect()->route('settings.index')->with('success', 'Navigation preferences updated successfully.');
     }
 
     public function updateDelivery(Request $request): RedirectResponse

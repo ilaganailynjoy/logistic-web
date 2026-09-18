@@ -342,7 +342,8 @@ class RiderAccountProvisioningTest extends TestCase
         $this->actingAs($admin)
             ->get(route('rider-applications.documents.view', $doc))
             ->assertStatus(200)
-            ->assertHeader('Content-Type', 'image/jpeg');
+            ->assertHeader('Content-Type', 'image/jpeg')
+            ->assertHeader('Content-Disposition', "inline; filename=\"valid_id.jpg\"");
 
         $this->actingAs($admin)
             ->get(route('rider-applications.documents.download', $doc))

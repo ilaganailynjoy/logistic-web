@@ -11,11 +11,13 @@ class NotificationController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
-        $notifications = Notification::latest()
-            ->take(20)
-            ->get();
+        // The bell only surfaces what this user chose to receive in
+        // Settings → Notification Settings; operational alerts that have no
+        // preference category are always shown.
+        $query = Notification::forUserPreferences($request->user()->id);
 
-        $unreadCount = Notification::unread()->count();
+        $notifications = (clone $query)->latest()->take(20)->get();
+        $unreadCount = (clone $query)->unread()->count();
 
         return response()->json([
             'notifications' => $notifications,

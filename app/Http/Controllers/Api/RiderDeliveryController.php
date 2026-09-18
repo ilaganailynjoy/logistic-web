@@ -106,6 +106,44 @@ class RiderDeliveryController extends Controller
     }
 
     /**
+     * Find the rider's delivery by shipping-label tracking number.
+     *
+     * Lookup only: scanning never assigns, claims, or mutates anything.
+     * Authorization is identical to show() — the delivery must already be
+     * assigned to the authenticated rider. A scanned QR code is an
+     * identifier, never permission.
+     */
+    public function lookup(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'tracking_number' => ['required', 'string', 'max:40'],
+        ]);
+
+        $delivery = Delivery::where(
+            'tracking_number',
+            strtoupper(trim($validated['tracking_number']))
+        )->first();
+
+        abort_if($delivery === null, 404, 'No parcel found for this tracking number.');
+
+        $this->authorizeDelivery($request, $delivery);
+
+        $delivery->load([
+            'items',
+            'statusLogs' => fn ($q) => $q->latest(),
+            'proof',
+            'failure',
+            'logisticsCenter',
+            'destinationCenter',
+            'serviceArea',
+        ]);
+
+        return response()->json([
+            'delivery' => $this->detailPayload($delivery),
+        ]);
+    }
+
+    /**
      * Accept an assigned delivery.
      */
     public function accept(Request $request, Delivery $delivery): JsonResponse

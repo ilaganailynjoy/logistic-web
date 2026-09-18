@@ -31,6 +31,15 @@ class RiderApplicationController extends Controller
     {
         $request->merge(['vehicle_type' => strtolower(trim((string) $request->input('vehicle_type')))]);
 
+        // Normalize the phone before validating so the `PhilippinePhone` format
+        // check and the `unique:rider_applications,phone` rule both run against
+        // the canonical 09XXXXXXXXX value. Without this, an equivalent variant
+        // such as +639171234567 would pass the unique check against an existing
+        // 09171234567 and create a duplicate row (mirrors CenterApplicationService).
+        if (is_string($request->input('phone'))) {
+            $request->merge(['phone' => PhilippinePhone::normalize($request->input('phone'))]);
+        }
+
         $data = $request->validate([
             'name' => 'required|string|max:255',
             'middle_initial' => 'nullable|string|max:5',

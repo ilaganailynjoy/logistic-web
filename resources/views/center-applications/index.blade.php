@@ -8,9 +8,9 @@
         </div>
 
         {{-- Filter toolbar --}}
-        <div class="flex flex-col xl:flex-row gap-3">
+        <div class="flex flex-col xl:flex-row xl:items-center gap-3">
             <form method="GET" action="{{ route('center-applications.index') }}" class="flex flex-col lg:flex-row gap-3 flex-1">
-                <div class="relative flex-1 min-w-[240px]">
+                <div class="relative flex-1 min-w-0 sm:min-w-[220px]">
                     <span class="absolute inset-y-0 left-3 flex items-center text-gray-400">
                         <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
                     </span>
@@ -32,6 +32,8 @@
                     Clear Filters
                 </a>
             @endif
+
+            <x-per-page route="center-applications.index"/>
         </div>
 
         {{-- Applications table --}}
@@ -45,6 +47,7 @@
                             <th class="px-6 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Email</th>
                             <th class="px-6 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Phone</th>
                             <th class="px-6 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
+                            <th class="px-6 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Validation Step</th>
                             <th class="px-6 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Submitted</th>
                             <th class="px-6 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Actions</th>
                         </tr>
@@ -72,6 +75,18 @@
                                         <span class="inline-flex items-center px-2.5 py-1 text-xs font-semibold rounded-full bg-red-50 text-red-700 ring-1 ring-inset ring-red-200">Rejected</span>
                                     @endif
                                 </td>
+                                <td class="px-6 py-4">
+                                    @php($stepLabels = $application->wizardErrorStepLabels())
+                                    @if(count($stepLabels) > 0)
+                                        <div class="flex flex-wrap gap-1.5">
+                                            @foreach($stepLabels as $step => $label)
+                                                <span class="inline-flex items-center px-2.5 py-1 text-xs font-semibold rounded-full bg-red-50 text-red-700 ring-1 ring-inset ring-red-200">Step {{ $step }} — {{ $label }}</span>
+                                            @endforeach
+                                        </div>
+                                    @else
+                                        <span class="inline-flex items-center px-2.5 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-500 ring-1 ring-inset ring-gray-200">No recorded wizard validation step</span>
+                                    @endif
+                                </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ $application->created_at?->format('M d, Y') ?? '—' }}</td>
                                 <td class="px-6 py-4 whitespace-nowrap">
                                     <a href="{{ route('center-applications.show', $application) }}" class="text-sm font-semibold text-teal hover:text-teal-dark">Review</a>
@@ -79,7 +94,7 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="7" class="px-6 py-16 text-center">
+                                <td colspan="8" class="px-6 py-16 text-center">
                                     <div class="flex flex-col items-center">
                                         <p class="text-sm font-semibold text-gray-900">No applications found</p>
                                         <p class="mt-1 text-sm text-gray-500">No center applications match the current filters.</p>

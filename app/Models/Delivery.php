@@ -204,6 +204,18 @@ class Delivery extends Model
         return $this->hasOne(PickupRequest::class);
     }
 
+    /**
+     * Read-only link to the originating buyer order (shared `orders` table).
+     *
+     * Used only to present seller/order/customer information on the
+     * shipping waybill. Adds no writes and does not modify the
+     * Buyer/Seller/Order systems.
+     */
+    public function order(): BelongsTo
+    {
+        return $this->belongsTo(Order::class);
+    }
+
     public function sortingCenterHandoffRider(): BelongsTo
     {
         return $this->belongsTo(Rider::class, 'sorting_center_handoff_rider_id');

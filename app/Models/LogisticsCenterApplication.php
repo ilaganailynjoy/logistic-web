@@ -21,6 +21,7 @@ class LogisticsCenterApplication extends Model
         'address',
         'status',
         'submitted_via',
+        'wizard_error_steps',
         'notes',
         'reviewed_at',
         'approved_by',
@@ -31,9 +32,64 @@ class LogisticsCenterApplication extends Model
     {
         return [
             'status' => 'string',
+            'wizard_error_steps' => 'array',
             'reviewed_at' => 'datetime',
             'provisioned_at' => 'datetime',
         ];
+    }
+
+    public const WIZARD_STEP_LABELS = [
+        1 => 'Center & Owner',
+        2 => 'Center Location',
+        3 => 'Supporting Documents',
+        4 => 'Review & Submit',
+    ];
+
+    /**
+     * Trusted, 1-based wizard steps recorded during submission. Handles the
+     * value arriving as a JSON array, a plain array, a JSON string, or a
+     * comma-separated string (legacy/admin-imported rows).
+     *
+     * @return array<int, int> Sorted 1..4 step numbers.
+     */
+    public static function normalizeWizardErrorSteps($value): array
+    {
+        if (is_string($value)) {
+            $value = str_starts_with(trim($value), '[')
+                ? json_decode($value, true)
+                : array_map('trim', explode(',', $value));
+        }
+
+        if (! is_array($value)) {
+            return [];
+        }
+
+        $steps = array_filter($value, static function ($step): bool {
+            return is_numeric($step) && $step >= 1 && $step <= 4;
+        });
+
+        $steps = array_values(array_unique(array_map('intval', $steps)));
+        sort($steps);
+
+        return $steps;
+    }
+
+    /**
+     * @return array<int, int> Sorted 1..4 step numbers recorded on this row.
+     */
+    public function wizardErrorSteps(): array
+    {
+        return static::normalizeWizardErrorSteps($this->wizard_error_steps);
+    }
+
+    /**
+     * @return array<int, string> Step number => human label for recorded steps.
+     */
+    public function wizardErrorStepLabels(): array
+    {
+        return collect(static::WIZARD_STEP_LABELS)
+            ->only($this->wizardErrorSteps())
+            ->all();
     }
 
     public function approver(): BelongsTo

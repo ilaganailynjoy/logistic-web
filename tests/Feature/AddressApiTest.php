@@ -8,91 +8,57 @@ use App\Models\Province;
 use Tests\TestCase;
 
 /**
- * Philippine Standard Geographic Code (PSGC) cascading address API:
- * GET /api/address/provinces, /provinces/{province}/municipalities,
- * /municipalities/{municipality}/barangays. Data comes straight from the
- * seeded provinces/municipalities/barangays tables.
+ * Public Philippine address cascade endpoints used by both the mobile app and
+ * the web logistics-center application form.
  */
 class AddressApiTest extends TestCase
 {
-    private Province $province;
-    private Province $otherProvince;
-    private Municipality $municipality;
-    private Municipality $otherMunicipality;
-
-    protected function setUp(): void
+    public function test_provinces_returns_ordered_list(): void
     {
-        parent::setUp();
+        Province::create(['code' => '015500000', 'name' => 'Batanes', 'region_code' => '015500000']);
+        Province::create(['code' => '014400000', 'name' => 'Abra', 'region_code' => '014400000']);
 
-        $this->province = Province::create([
-            'code' => '012800000',
-            'name' => 'Ilocos Norte',
-            'region_code' => '010000000',
-        ]);
-        $this->otherProvince = Province::create([
-            'code' => '130000000',
-            'name' => 'Metro Manila',
-            'region_code' => '130000000',
-        ]);
-
-        $this->municipality = Municipality::create([
-            'code' => '012801000',
-            'name' => 'Laoag City',
-            'province_id' => $this->province->id,
-            'region_code' => '010000000',
-        ]);
-        $this->otherMunicipality = Municipality::create([
-            'code' => '133900000',
-            'name' => 'Manila',
-            'province_id' => $this->otherProvince->id,
-            'region_code' => '130000000',
-        ]);
-
-        Barangay::create([
-            'code' => '012801001',
-            'name' => 'Barangay 1',
-            'municipality_id' => $this->municipality->id,
-        ]);
-        Barangay::create([
-            'code' => '012801002',
-            'name' => 'Barangay 2',
-            'municipality_id' => $this->municipality->id,
-        ]);
+        $this->getJson('/api/address/provinces')
+            ->assertOk()
+            ->assertJsonCount(2, 'provinces')
+            ->assertJsonPath('provinces.0.name', 'Abra')
+            ->assertJsonPath('provinces.1.name', 'Batanes');
     }
 
-    public function test_lists_provinces(): void
+    public function test_municipalities_returns_children_ordered_by_name(): void
     {
-        $res = $this->getJson('/api/address/provinces');
+        $province = Province::create(['code' => '013900000', 'name' => 'Metro Manila', 'region_code' => '013900000']);
+        Municipality::create(['code' => '137404000', 'name' => 'Pasig', 'province_id' => $province->id, 'region_code' => '013900000']);
+        Municipality::create(['code' => '137501000', 'name' => 'Caloocan', 'province_id' => $province->id, 'region_code' => '013900000']);
 
-        $res->assertOk()->assertJsonCount(2, 'provinces');
-        $res->assertJsonFragment(['name' => 'Ilocos Norte']);
-        $res->assertJsonFragment(['name' => 'Metro Manila']);
+        $this->getJson("/api/address/provinces/{$province->id}/municipalities")
+            ->assertOk()
+            ->assertJsonCount(2, 'municipalities')
+            ->assertJsonPath('municipalities.0.name', 'Caloocan')
+            ->assertJsonPath('municipalities.1.name', 'Pasig')
+            ->assertJsonPath('province.name', 'Metro Manila');
     }
 
-    public function test_lists_municipalities_of_a_province(): void
+    public function test_barangays_returns_children_ordered_by_name(): void
     {
-        $res = $this->getJson("/api/address/provinces/{$this->province->id}/municipalities");
+        $province = Province::create(['code' => '013900000', 'name' => 'Metro Manila', 'region_code' => '013900000']);
+        $municipality = Municipality::create(['code' => '137404000', 'name' => 'Pasig', 'province_id' => $province->id, 'region_code' => '013900000']);
+        Barangay::create(['code' => '137404022', 'name' => 'Zulu', 'municipality_id' => $municipality->id]);
+        Barangay::create(['code' => '137404001', 'name' => 'Aguila', 'municipality_id' => $municipality->id]);
 
-        $res->assertOk()->assertJsonCount(1, 'municipalities');
-        $res->assertJsonFragment(['name' => 'Laoag City']);
-        $res->assertJsonMissing(['name' => 'Manila']);
+        $this->getJson("/api/address/municipalities/{$municipality->id}/barangays")
+            ->assertOk()
+            ->assertJsonCount(2, 'barangays')
+            ->assertJsonPath('barangays.0.name', 'Aguila')
+            ->assertJsonPath('barangays.1.name', 'Zulu');
     }
 
-    public function test_lists_barangays_of_a_municipality(): void
-    {
-        $res = $this->getJson("/api/address/municipalities/{$this->municipality->id}/barangays");
-
-        $res->assertOk()->assertJsonCount(2, 'barangays');
-        $res->assertJsonFragment(['name' => 'Barangay 1']);
-        $res->assertJsonFragment(['name' => 'Barangay 2']);
-    }
-
-    public function test_unknown_province_returns_404(): void
+    public function test_municipalities_returns_404_for_missing_province(): void
     {
         $this->getJson('/api/address/provinces/999999/municipalities')->assertNotFound();
     }
 
-    public function test_unknown_municipality_returns_404(): void
+    public function test_barangays_returns_404_for_missing_municipality(): void
     {
         $this->getJson('/api/address/municipalities/999999/barangays')->assertNotFound();
     }

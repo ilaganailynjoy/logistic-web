@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Notification;
 use App\Models\PickupRequest;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
@@ -90,6 +91,15 @@ class PickupRequestController extends Controller
             'reviewed_by' => $user->id,
             'reviewed_at' => now(),
             'rejection_reason' => $validated['rejection_reason'],
+        ]);
+
+        Notification::create([
+            'type' => 'pickup_failed',
+            'title' => 'Pickup Failed',
+            'message' => "Pickup request #{$pickupRequest->id} was rejected. Reason: {$validated['rejection_reason']}",
+            'icon' => '⚠️',
+            'priority' => 'high',
+            'link' => route('pickup-requests.show', $pickupRequest),
         ]);
 
         return back()->with('success', 'Pickup request rejected. The delivery was not modified.');

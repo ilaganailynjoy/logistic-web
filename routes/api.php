@@ -48,6 +48,8 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/dashboard', [RiderController::class, 'dashboard']);
 
         Route::get('/deliveries', [RiderDeliveryController::class, 'index']);
+        // Registered before show() so "lookup" is not captured by {delivery}.
+        Route::get('/deliveries/lookup', [RiderDeliveryController::class, 'lookup']);
         Route::get('/deliveries/{delivery}', [RiderDeliveryController::class, 'show']);
         Route::post('/deliveries/{delivery}/accept', [RiderDeliveryController::class, 'accept']);
         Route::patch('/deliveries/{delivery}/status', [RiderDeliveryController::class, 'updateStatus']);

@@ -428,4 +428,40 @@ class RiderApplicationControllerTest extends TestCase
             'email' => $data['email'],
         ]);
     }
+
+    public function test_apply_rejects_equivalent_phone_formats_as_duplicates(): void
+    {
+        Storage::fake('local');
+
+        $first = $this->submitData();
+        $first['phone'] = '09171234567';
+        $this->post('/api/rider/apply', $first)->assertStatus(201);
+
+        foreach (['+639171234567', '+63 917 123 4567', '0917-123-4567'] as $duplicate) {
+            $data = $this->submitData();
+            $data['phone'] = $duplicate;
+
+            $response = $this->post('/api/rider/apply', $data);
+            $response->assertStatus(422)
+                ->assertJsonValidationErrors(['phone'])
+                ->assertJsonPath('errors.phone.0', 'The phone has already been taken.');
+        }
+
+        $this->assertSame(1, RiderApplication::where('phone', '09171234567')->count());
+    }
+
+    public function test_apply_accepts_a_different_phone_when_another_exists(): void
+    {
+        Storage::fake('local');
+
+        $first = $this->submitData();
+        $first['phone'] = '09171234567';
+        $this->post('/api/rider/apply', $first)->assertStatus(201);
+
+        $different = $this->submitData();
+        $different['phone'] = '09181234567';
+        $this->post('/api/rider/apply', $different)->assertStatus(201);
+
+        $this->assertSame(2, RiderApplication::count());
+    }
 }

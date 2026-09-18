@@ -1,0 +1,11 @@
+{
+    "name": "invoiz-browser-tests",
+    "private": true,
+    "description": "Playwright browser verification for the public multi-step Logistics Center application wizard.",
+    "scripts": {
+        "test": "node center-wizard.spec.mjs"
+    },
+    "devDependencies": {
+        "playwright-core": "^1.51.0"
+    }
+}

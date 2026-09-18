@@ -18,109 +18,22 @@
             </div>
         </div>
 
-        {{-- Deliveries summary --}}
-        <section>
-            <div class="flex items-center justify-between mb-3">
-                <h2 class="text-sm font-bold text-gray-900 uppercase tracking-wider text-gray-500">Deliveries</h2>
-            </div>
-            <div class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4">
-                <a href="{{ route('deliveries.index') }}" class="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 hover:shadow-lg hover:border-teal/30 transition-all duration-200">
-                    <p class="text-xs font-medium text-gray-500">Total Deliveries</p>
-                    <p class="mt-0.5 text-2xl font-bold text-gray-900">{{ $deliveries['total'] }}</p>
-                    <p class="text-xs font-medium text-teal-dark mt-0.5">All time</p>
-                </a>
-                <a href="{{ route('deliveries.index', ['status' => 'waiting_for_rider']) }}" class="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 hover:shadow-lg hover:border-amber-300 transition-all duration-200">
-                    <div class="flex items-center justify-between">
-                        <p class="text-xs font-medium text-gray-500">Waiting for Rider</p>
-                        <span class="h-2.5 w-2.5 rounded-full bg-amber-400"></span>
-                    </div>
-                    <p class="mt-0.5 text-2xl font-bold text-gray-900">{{ $deliveries['waiting_for_rider'] }}</p>
-                    <p class="text-xs font-medium text-amber-500 mt-0.5">Needs dispatch</p>
-                </a>
-                <a href="{{ route('deliveries.index', ['status' => 'assigned']) }}" class="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 hover:shadow-lg hover:border-blue-300 transition-all duration-200">
-                    <div class="flex items-center justify-between">
-                        <p class="text-xs font-medium text-gray-500">Assigned</p>
-                        <span class="h-2.5 w-2.5 rounded-full bg-blue-500"></span>
-                    </div>
-                    <p class="mt-0.5 text-2xl font-bold text-gray-900">{{ $deliveries['assigned'] }}</p>
-                    <p class="text-xs font-medium text-blue-500 mt-0.5">With rider</p>
-                </a>
-                <a href="{{ route('deliveries.index', ['status' => 'out_for_delivery']) }}" class="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 hover:shadow-lg hover:border-purple-300 transition-all duration-200">
-                    <div class="flex items-center justify-between">
-                        <p class="text-xs font-medium text-gray-500">Out for Delivery</p>
-                        <span class="h-2.5 w-2.5 rounded-full bg-purple-500"></span>
-                    </div>
-                    <p class="mt-0.5 text-2xl font-bold text-gray-900">{{ $deliveries['out_for_delivery'] }}</p>
-                    <p class="text-xs font-medium text-purple-500 mt-0.5">Currently delivering</p>
-                </a>
-                <a href="{{ route('deliveries.index', ['status' => 'delivered']) }}" class="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 hover:shadow-lg hover:border-emerald-300 transition-all duration-200">
-                    <div class="flex items-center justify-between">
-                        <p class="text-xs font-medium text-gray-500">Delivered</p>
-                        <span class="h-2.5 w-2.5 rounded-full bg-emerald-500"></span>
-                    </div>
-                    <p class="mt-0.5 text-2xl font-bold text-gray-900">{{ $deliveries['delivered'] }}</p>
-                    <p class="text-xs font-medium text-emerald-500 mt-0.5">Completed</p>
-                </a>
-                <a href="{{ route('deliveries.index', ['status' => 'delivery_failed']) }}" class="bg-white rounded-2xl border {{ $deliveries['failed'] > 0 ? 'border-red-200 ring-1 ring-red-100' : 'border-gray-100' }} shadow-sm p-5 hover:shadow-lg hover:border-red-300 transition-all duration-200">
-                    <div class="flex items-center justify-between">
-                        <p class="text-xs font-medium text-gray-500">Delivery Failed</p>
-                        <span class="h-2.5 w-2.5 rounded-full {{ $deliveries['failed'] > 0 ? 'bg-red-500 animate-pulse' : 'bg-gray-300' }}"></span>
-                    </div>
-                    <p class="mt-0.5 text-2xl font-bold {{ $deliveries['failed'] > 0 ? 'text-red-600' : 'text-gray-900' }}">{{ $deliveries['failed'] }}</p>
-                    <p class="text-xs font-medium {{ $deliveries['failed'] > 0 ? 'text-red-500' : 'text-gray-400' }} mt-0.5">{{ $deliveries['failed'] > 0 ? 'Requires attention' : 'No issues' }}</p>
-                </a>
-            </div>
-        </section>
-
-        {{-- Riders + Financial summary --}}
-        <section class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
-                <p class="text-xs font-medium text-gray-500 uppercase tracking-wider">Riders</p>
-                <div class="mt-3 grid grid-cols-3 gap-4">
-                    <a href="{{ route('riders.index') }}" class="rounded-xl border border-gray-100 p-3 hover:border-teal/30 transition">
-                        <p class="text-xs text-gray-500">Total Riders</p>
-                        <p class="text-2xl font-bold text-gray-900">{{ $riders['total'] }}</p>
-                    </a>
-                    <a href="{{ route('riders.index', ['online' => 'online']) }}" class="rounded-xl border border-emerald-100 bg-emerald-50/40 p-3 hover:border-emerald-300 transition">
-                        <p class="text-xs text-emerald-600">Online</p>
-                        <p class="text-2xl font-bold text-emerald-700">{{ $riders['online'] }}</p>
-                        <p class="text-[11px] text-emerald-600 mt-0.5">Available now</p>
-                    </a>
-                    <a href="{{ route('riders.index', ['online' => 'offline']) }}" class="rounded-xl border border-gray-100 p-3 hover:border-gray-300 transition">
-                        <p class="text-xs text-gray-500">Offline</p>
-                        <p class="text-2xl font-bold text-gray-900">{{ $riders['offline'] }}</p>
-                        <p class="text-[11px] text-gray-400 mt-0.5">Not for new deliveries</p>
-                    </a>
-                </div>
-            </div>
-
-            <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
-                <p class="text-xs font-medium text-gray-500 uppercase tracking-wider">Financial — Today</p>
-                <div class="mt-3 grid grid-cols-3 gap-4">
-                    <a href="{{ route('transactions.index') }}" class="rounded-xl border border-gray-100 p-3 hover:border-teal/30 transition">
-                        <p class="text-xs text-gray-500">Today's Transactions</p>
-                        <p class="text-2xl font-bold text-gray-900">{{ number_format($financialToday['count']) }}</p>
-                    </a>
-                    <a href="{{ route('transactions.index') }}" class="rounded-xl border border-gray-100 p-3 hover:border-teal/30 transition">
-                        <p class="text-xs text-gray-500">Today's Rider Fees</p>
-                        <p class="text-2xl font-bold text-teal-dark">{{ '₱' . number_format($financialToday['rider_fee'], 2) }}</p>
-                    </a>
-                    <a href="{{ route('transactions.index') }}" class="rounded-xl border border-gray-100 p-3 hover:border-teal/30 transition">
-                        <p class="text-xs text-gray-500">Today's Admin Commission</p>
-                        <p class="text-2xl font-bold text-teal-dark">{{ '₱' . number_format($financialToday['commission'], 2) }}</p>
-                    </a>
-                </div>
-            </div>
-        </section>
-
-        {{-- Needs Attention --}}
-        <section class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
-            <div class="px-5 sm:px-6 py-4 border-b border-gray-100 flex items-center gap-2">
-                <span class="h-2.5 w-2.5 rounded-full bg-red-500"></span>
-                <h2 class="text-base font-bold text-gray-900">Needs Attention</h2>
-            </div>
-
+        {{-- LEVEL 1 — Needs Attention (actionable problems first) --}}
+        <section class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden" aria-label="Items needing attention">
             @php $attentionTotal = $needsAttention['waitingForRider'] + $needsAttention['failed'] + $needsAttention['processing']; @endphp
+            <div class="px-5 sm:px-6 py-4 border-b border-gray-100 flex items-center gap-2.5">
+                <span class="inline-flex items-center justify-center w-6 h-6 rounded-full {{ $attentionTotal > 0 ? 'bg-red-100 text-red-600' : 'bg-emerald-100 text-emerald-600' }}" aria-hidden="true">
+                    @if($attentionTotal > 0)
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                    @else
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                    @endif
+                </span>
+                <h2 class="text-base font-bold text-gray-900">Needs Attention</h2>
+                @if($attentionTotal > 0)
+                    <span class="ml-auto inline-flex items-center px-2.5 py-1 rounded-full bg-red-100 text-red-700 text-xs font-bold">{{ $attentionTotal }} open {{ $attentionTotal === 1 ? 'item' : 'items' }}</span>
+                @endif
+            </div>
 
             @if($attentionTotal === 0)
                 <div class="px-5 sm:px-6 py-10 text-center">
@@ -132,38 +45,139 @@
                 </div>
             @else
                 <div class="grid grid-cols-1 sm:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x divide-gray-100">
-                    <a href="{{ route('deliveries.index', ['status' => 'waiting_for_rider']) }}" class="flex items-center justify-between gap-3 px-5 sm:px-6 py-5 hover:bg-amber-50/40 transition group {{ $needsAttention['waitingForRider'] === 0 ? 'opacity-60' : '' }}">
+                    <a href="{{ route('deliveries.index', ['status' => 'waiting_for_rider']) }}" class="flex items-center justify-between gap-3 px-5 sm:px-6 py-5 border-l-4 border-l-amber-400 hover:bg-amber-50/40 transition group {{ $needsAttention['waitingForRider'] === 0 ? 'opacity-60' : '' }}">
                         <div>
                             <p class="text-sm font-semibold text-gray-900">Waiting for rider</p>
                             <p class="text-xs text-gray-500 mt-0.5">Unassigned deliveries</p>
                         </div>
                         <div class="text-right">
-                            <span class="inline-flex items-center justify-center min-w-[2.5rem] px-2 py-1 rounded-lg bg-amber-100 text-amber-700 font-bold">{{ $needsAttention['waitingForRider'] }}</span>
+                            <span class="inline-flex items-center justify-center min-w-[2.5rem] px-2 py-1 rounded-lg bg-amber-100 text-amber-700 text-lg font-extrabold">{{ $needsAttention['waitingForRider'] }}</span>
                             <p class="text-xs font-semibold text-teal group-hover:underline mt-1">View</p>
                         </div>
                     </a>
-                    <a href="{{ route('deliveries.index', ['status' => 'delivery_failed']) }}" class="flex items-center justify-between gap-3 px-5 sm:px-6 py-5 hover:bg-red-50/40 transition group {{ $needsAttention['failed'] === 0 ? 'opacity-60' : '' }}">
+                    <a href="{{ route('deliveries.index', ['status' => 'delivery_failed']) }}" class="flex items-center justify-between gap-3 px-5 sm:px-6 py-5 border-l-4 border-l-red-400 hover:bg-red-50/40 transition group {{ $needsAttention['failed'] === 0 ? 'opacity-60' : '' }}">
                         <div>
                             <p class="text-sm font-semibold text-gray-900">Failed deliveries</p>
                             <p class="text-xs text-gray-500 mt-0.5">Failed out for delivery</p>
                         </div>
                         <div class="text-right">
-                            <span class="inline-flex items-center justify-center min-w-[2.5rem] px-2 py-1 rounded-lg bg-red-100 text-red-700 font-bold">{{ $needsAttention['failed'] }}</span>
+                            <span class="inline-flex items-center justify-center min-w-[2.5rem] px-2 py-1 rounded-lg bg-red-100 text-red-700 text-lg font-extrabold">{{ $needsAttention['failed'] }}</span>
                             <p class="text-xs font-semibold text-teal group-hover:underline mt-1">View</p>
                         </div>
                     </a>
-                    <a href="{{ route('deliveries.index', ['status' => 'waiting_for_rider']) }}" class="flex items-center justify-between gap-3 px-5 sm:px-6 py-5 hover:bg-teal-light/40 transition group {{ $needsAttention['processing'] === 0 ? 'opacity-60' : '' }}">
+                    <a href="{{ route('deliveries.index', ['status' => 'waiting_for_rider']) }}" class="flex items-center justify-between gap-3 px-5 sm:px-6 py-5 border-l-4 border-l-teal hover:bg-teal-light/40 transition group {{ $needsAttention['processing'] === 0 ? 'opacity-60' : '' }}">
                         <div>
                             <p class="text-sm font-semibold text-gray-900">Requires processing</p>
                             <p class="text-xs text-gray-500 mt-0.5">Parcels at center not yet dispatched</p>
                         </div>
                         <div class="text-right">
-                            <span class="inline-flex items-center justify-center min-w-[2.5rem] px-2 py-1 rounded-lg bg-teal-light text-teal-dark font-bold">{{ $needsAttention['processing'] }}</span>
+                            <span class="inline-flex items-center justify-center min-w-[2.5rem] px-2 py-1 rounded-lg bg-teal-light text-teal-dark text-lg font-extrabold">{{ $needsAttention['processing'] }}</span>
                             <p class="text-xs font-semibold text-teal group-hover:underline mt-1">View</p>
                         </div>
                     </a>
                 </div>
             @endif
+        </section>
+
+        {{-- LEVEL 2 — Operations at a glance (primary KPIs) --}}
+        <section aria-label="Operations at a glance">
+            @php $completionRate = $deliveries['total'] > 0 ? (int) round($deliveries['delivered'] / $deliveries['total'] * 100) : 0; @endphp
+            <p class="text-xs font-bold text-gray-500 uppercase tracking-wider">Operations at a glance</p>
+            <div class="mt-3 grid grid-cols-2 lg:grid-cols-5 gap-4">
+                <a href="{{ route('deliveries.index') }}" class="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 sm:p-6 hover:shadow-md hover:border-teal/30 transition">
+                    <p class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Total Deliveries</p>
+                    <p class="mt-1 text-3xl sm:text-4xl font-extrabold tracking-tight text-gray-900">{{ $deliveries['total'] }}</p>
+                    <p class="text-xs text-gray-500 mt-1">All time</p>
+                </a>
+                <a href="{{ route('deliveries.index', ['status' => 'delivered']) }}" class="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 sm:p-6 hover:shadow-md hover:border-emerald-300 transition">
+                    <div class="flex items-center justify-between gap-2">
+                        <p class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Delivered</p>
+                        <span class="h-2.5 w-2.5 rounded-full bg-emerald-500 flex-shrink-0" aria-hidden="true"></span>
+                    </div>
+                    <p class="mt-1 text-3xl sm:text-4xl font-extrabold tracking-tight text-gray-900">{{ $deliveries['delivered'] }}</p>
+                    <p class="text-xs text-emerald-600 font-medium mt-1">{{ $completionRate }}% of all deliveries</p>
+                </a>
+                <a href="{{ route('deliveries.index', ['status' => 'waiting_for_rider']) }}" class="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 sm:p-6 hover:shadow-md hover:border-amber-300 transition">
+                    <div class="flex items-center justify-between gap-2">
+                        <p class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Waiting for Rider</p>
+                        <span class="h-2.5 w-2.5 rounded-full bg-amber-400 flex-shrink-0" aria-hidden="true"></span>
+                    </div>
+                    <p class="mt-1 text-3xl sm:text-4xl font-extrabold tracking-tight text-gray-900">{{ $deliveries['waiting_for_rider'] }}</p>
+                    <p class="text-xs text-amber-600 font-medium mt-1">Needs dispatch</p>
+                </a>
+                <a href="{{ route('deliveries.index', ['status' => 'delivery_failed']) }}" class="bg-white rounded-2xl border {{ $deliveries['failed'] > 0 ? 'border-red-200 ring-1 ring-red-100' : 'border-gray-100' }} shadow-sm p-5 sm:p-6 hover:shadow-md hover:border-red-300 transition">
+                    <div class="flex items-center justify-between gap-2">
+                        <p class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Delivery Failed</p>
+                        <span class="h-2.5 w-2.5 rounded-full flex-shrink-0 {{ $deliveries['failed'] > 0 ? 'bg-red-500 motion-safe:animate-pulse' : 'bg-gray-300' }}" aria-hidden="true"></span>
+                    </div>
+                    <p class="mt-1 text-3xl sm:text-4xl font-extrabold tracking-tight {{ $deliveries['failed'] > 0 ? 'text-red-600' : 'text-gray-900' }}">{{ $deliveries['failed'] }}</p>
+                    <p class="text-xs font-medium mt-1 {{ $deliveries['failed'] > 0 ? 'text-red-500' : 'text-gray-400' }}">{{ $deliveries['failed'] > 0 ? 'Requires attention' : 'No issues' }}</p>
+                </a>
+                <a href="{{ route('riders.index', ['online' => 'online']) }}" class="bg-white rounded-2xl border border-emerald-100 shadow-sm p-5 sm:p-6 hover:shadow-md hover:border-emerald-300 transition col-span-2 lg:col-span-1">
+                    <div class="flex items-center justify-between gap-2">
+                        <p class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Riders Online</p>
+                        <span class="h-2.5 w-2.5 rounded-full bg-emerald-500 flex-shrink-0" aria-hidden="true"></span>
+                    </div>
+                    <p class="mt-1 text-3xl sm:text-4xl font-extrabold tracking-tight text-gray-900">{{ $riders['online'] }}</p>
+                    <p class="text-xs text-gray-500 mt-1">of {{ $riders['total'] }} total riders · Available now</p>
+                </a>
+            </div>
+            {{-- Secondary delivery statuses (compact) --}}
+            <div class="mt-3 grid grid-cols-2 gap-3">
+                <a href="{{ route('deliveries.index', ['status' => 'assigned']) }}" class="bg-white rounded-xl border border-gray-100 shadow-sm px-4 py-3 flex items-center justify-between gap-3 hover:border-blue-300 transition">
+                    <span class="flex items-center gap-2 min-w-0">
+                        <span class="h-2 w-2 rounded-full bg-blue-500 flex-shrink-0" aria-hidden="true"></span>
+                        <span class="text-sm font-semibold text-gray-700 truncate">Assigned <span class="font-normal text-gray-400">· With rider</span></span>
+                    </span>
+                    <span class="text-xl font-bold text-gray-900 flex-shrink-0">{{ $deliveries['assigned'] }}</span>
+                </a>
+                <a href="{{ route('deliveries.index', ['status' => 'out_for_delivery']) }}" class="bg-white rounded-xl border border-gray-100 shadow-sm px-4 py-3 flex items-center justify-between gap-3 hover:border-purple-300 transition">
+                    <span class="flex items-center gap-2 min-w-0">
+                        <span class="h-2 w-2 rounded-full bg-purple-500 flex-shrink-0" aria-hidden="true"></span>
+                        <span class="text-sm font-semibold text-gray-700 truncate">Out for Delivery <span class="font-normal text-gray-400">· In transit</span></span>
+                    </span>
+                    <span class="text-xl font-bold text-gray-900 flex-shrink-0">{{ $deliveries['out_for_delivery'] }}</span>
+                </a>
+            </div>
+        </section>
+
+        {{-- LEVEL 2 (secondary) — Riders + Financial summary --}}
+        <section class="grid grid-cols-1 md:grid-cols-2 gap-4" aria-label="Riders and financial summary">
+            <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 sm:p-5">
+                <p class="text-xs font-medium text-gray-500 uppercase tracking-wider">Riders</p>
+                <div class="mt-3 grid grid-cols-3 gap-3">
+                    <a href="{{ route('riders.index') }}" class="rounded-xl border border-gray-100 p-3 hover:border-teal/30 transition">
+                        <p class="text-xs text-gray-500">Total Riders</p>
+                        <p class="text-xl font-bold text-gray-900">{{ $riders['total'] }}</p>
+                    </a>
+                    <a href="{{ route('riders.index', ['online' => 'online']) }}" class="rounded-xl border border-emerald-100 bg-emerald-50/40 p-3 hover:border-emerald-300 transition">
+                        <p class="text-xs text-emerald-600">Online</p>
+                        <p class="text-xl font-bold text-emerald-700">{{ $riders['online'] }}</p>
+                    </a>
+                    <a href="{{ route('riders.index', ['online' => 'offline']) }}" class="rounded-xl border border-gray-100 p-3 hover:border-gray-300 transition">
+                        <p class="text-xs text-gray-500">Offline</p>
+                        <p class="text-xl font-bold text-gray-900">{{ $riders['offline'] }}</p>
+                    </a>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 sm:p-5">
+                <p class="text-xs font-medium text-gray-500 uppercase tracking-wider">Financial — Today</p>
+                <div class="mt-3 grid grid-cols-3 gap-3">
+                    <a href="{{ route('transactions.index') }}" class="rounded-xl border border-gray-100 p-3 hover:border-teal/30 transition">
+                        <p class="text-xs text-gray-500">Today's Transactions</p>
+                        <p class="text-xl font-bold text-gray-900">{{ number_format($financialToday['count']) }}</p>
+                    </a>
+                    <a href="{{ route('transactions.index') }}" class="rounded-xl border border-gray-100 p-3 hover:border-teal/30 transition">
+                        <p class="text-xs text-gray-500">Today's Rider Fees</p>
+                        <p class="text-xl font-bold text-teal-dark">{{ '₱' . number_format($financialToday['rider_fee'], 2) }}</p>
+                    </a>
+                    <a href="{{ route('transactions.index') }}" class="rounded-xl border border-gray-100 p-3 hover:border-teal/30 transition">
+                        <p class="text-xs text-gray-500">Today's Admin Commission</p>
+                        <p class="text-xl font-bold text-teal-dark">{{ '₱' . number_format($financialToday['commission'], 2) }}</p>
+                    </a>
+                </div>
+            </div>
         </section>
 
         {{-- Charts: compact 3-column row with expandable details --}}
@@ -515,107 +529,6 @@
 
             <div x-show="!expanded" class="px-4 py-3 text-center">
                 <p class="text-[11px] text-gray-500">Expanded view shows search, filters and paginated records · <button @click="expanded=true" class="font-semibold text-teal hover:text-teal-dark">Expand</button></p>
-            </div>
-        </section>
-
-        {{-- Detailed Records — collapsible, paginated, searchable (frontend-only, uses existing recent_deliveries) --}}
-        <section class="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden" x-data="detailedRecords()" x-init="init()">
-            <div class="px-4 sm:px-5 py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-gray-100">
-                <div class="min-w-0">
-                    <h2 class="text-xs font-bold text-gray-900 leading-tight">Detailed Records</h2>
-                    <p class="text-[10px] text-gray-500 mt-0.5">Search, filter and paginate deliveries · <span class="font-medium" x-text="filtered.length + ' of ' + all.length"></span> <span class="text-gray-400">· Frontend-only (use Deliveries for server search)</span></p>
-                </div>
-                <button @click="expanded = !expanded" class="inline-flex items-center gap-1.5 text-[11px] font-semibold text-teal hover:text-teal-dark bg-teal-light/50 hover:bg-teal-light px-3 py-1 rounded-full transition flex-shrink-0" :aria-expanded="expanded.toString()" aria-label="Toggle detailed records">
-                    <span x-text="expanded ? 'Collapse' : 'Expand'"></span>
-                    <svg class="w-3 h-3 transition-transform" :class="expanded ? 'rotate-180' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
-                </button>
-            </div>
-            <div x-show="expanded" x-collapse x-cloak>
-                <div class="p-3 sm:p-4 bg-gray-50/50 border-b border-gray-100 space-y-3">
-                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
-                        <label class="flex flex-col gap-1">
-                            <span class="text-[10px] font-semibold text-gray-600">Search</span>
-                            <input x-model="search" @input.debounce.300ms="applyFilters()" type="text" placeholder="Tracking #, recipient, rider…" class="w-full rounded-lg border-gray-200 text-xs px-2.5 py-1.5 focus:border-teal focus:ring-teal" aria-label="Search deliveries">
-                        </label>
-                        <label class="flex flex-col gap-1">
-                            <span class="text-[10px] font-semibold text-gray-600">Status</span>
-                            <select x-model="statusFilter" @change="applyFilters()" class="w-full rounded-lg border-gray-200 text-xs px-2 py-1.5 focus:border-teal focus:ring-teal" aria-label="Filter by status">
-                                <option value="">All statuses</option>
-                                <template x-for="opt in statusOptions" :key="opt.value"><option :value="opt.value" x-text="opt.label"></option></template>
-                            </select>
-                        </label>
-                        <label class="flex flex-col gap-1">
-                            <span class="text-[10px] font-semibold text-gray-600">Center</span>
-                            <select x-model="centerFilter" @change="applyFilters()" class="w-full rounded-lg border-gray-200 text-xs px-2 py-1.5 focus:border-teal focus:ring-teal" aria-label="Filter by center">
-                                <option value="">All centers</option>
-                                <template x-for="c in centerOptions" :key="c.value"><option :value="c.value" x-text="c.label"></option></template>
-                            </select>
-                        </label>
-                        <label class="flex flex-col gap-1">
-                            <span class="text-[10px] font-semibold text-gray-600">Sort by</span>
-                            <select x-model="sortBy" @change="applyFilters()" class="w-full rounded-lg border-gray-200 text-xs px-2 py-1.5 focus:border-teal focus:ring-teal" aria-label="Sort records">
-                                <option value="updated_desc">Updated — newest</option>
-                                <option value="updated_asc">Updated — oldest</option>
-                                <option value="tracking_asc">Tracking — A→Z</option>
-                                <option value="status_asc">Status — A→Z</option>
-                            </select>
-                        </label>
-                    </div>
-                    <p class="text-[10px] text-gray-400">Frontend-only filtering of current records · Use <a href="{{ route('deliveries.index') }}" class="text-teal hover:underline font-medium">Deliveries →</a> for full server-side search & pagination</p>
-                </div>
-                <div x-show="paginated.length === 0" class="py-10 text-center">
-                    <p class="text-xs font-semibold text-gray-700">No records match your filters</p>
-                    <p class="text-[11px] text-gray-500 mt-1">Try adjusting search or filters</p>
-                    <button @click="clearFilters()" class="mt-3 text-[11px] font-semibold text-teal hover:text-teal-dark">Clear filters</button>
-                </div>
-                <div x-show="paginated.length > 0" class="hidden sm:block overflow-x-auto">
-                    <table class="min-w-full divide-y divide-gray-100">
-                        <thead class="bg-gray-50">
-                            <tr>
-                                <th class="px-3 py-2 text-left text-[10px] font-semibold text-gray-500 uppercase tracking-wider">Tracking #</th>
-                                <th class="px-3 py-2 text-left text-[10px] font-semibold text-gray-500 uppercase tracking-wider">Recipient</th>
-                                <th class="px-3 py-2 text-left text-[10px] font-semibold text-gray-500 uppercase tracking-wider">Center</th>
-                                <th class="px-3 py-2 text-left text-[10px] font-semibold text-gray-500 uppercase tracking-wider">Status</th>
-                                <th class="px-3 py-2 text-right text-[10px] font-semibold text-gray-500 uppercase tracking-wider">Updated</th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-gray-100">
-                            <template x-for="row in paginated" :key="row.id">
-                                <tr class="hover:bg-gray-50">
-                                    <td class="px-3 py-2 text-xs font-mono font-medium text-gray-900 whitespace-nowrap"><a :href="row.showUrl" class="hover:text-teal-dark" x-text="row.tracking"></a></td>
-                                    <td class="px-3 py-2 text-xs text-gray-600 truncate max-w-[140px]" x-text="row.recipient"></td>
-                                    <td class="px-3 py-2 text-xs text-gray-600 truncate max-w-[120px]" x-text="row.center"></td>
-                                    <td class="px-3 py-2"><span class="inline-flex px-2 py-0.5 rounded-full text-[10px] font-semibold" :class="statusClass(row.statusRaw)" x-text="row.status"></span></td>
-                                    <td class="px-3 py-2 text-[11px] text-gray-500 text-right whitespace-nowrap" x-text="row.updated"></td>
-                                </tr>
-                            </template>
-                        </tbody>
-                    </table>
-                </div>
-                <div class="sm:hidden divide-y divide-gray-100" x-show="paginated.length > 0">
-                    <template x-for="row in paginated" :key="row.id">
-                        <a :href="row.showUrl" class="block px-3 py-3 hover:bg-gray-50">
-                            <div class="flex items-center justify-between gap-2">
-                                <span class="text-xs font-mono font-bold text-gray-900 truncate" x-text="row.tracking"></span>
-                                <span class="inline-flex px-2 py-0.5 rounded-full text-[10px] font-semibold flex-shrink-0" :class="statusClass(row.statusRaw)" x-text="row.status"></span>
-                            </div>
-                            <p class="text-[11px] text-gray-600 truncate mt-0.5" x-text="row.recipient + ' · ' + row.center"></p>
-                            <p class="text-[10px] text-gray-400 mt-0.5" x-text="row.updated"></p>
-                        </a>
-                    </template>
-                </div>
-                <div class="flex flex-col sm:flex-row items-center justify-between gap-2 px-3 sm:px-4 py-3 border-t border-gray-100 bg-gray-50/30">
-                    <p class="text-[11px] text-gray-500"><span x-text="'Page ' + page + ' of ' + totalPages"></span> · <span x-text="filtered.length + ' records'"></span></p>
-                    <div class="flex items-center gap-1">
-                        <button @click="prev()" :disabled="page===1" class="px-2.5 py-1 rounded-lg text-[11px] font-semibold border disabled:opacity-40 disabled:cursor-not-allowed" :class="page===1 ? 'bg-white text-gray-400 border-gray-200' : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'">Prev</button>
-                        <span class="text-[11px] text-gray-500 px-1" x-text="page + ' / ' + totalPages"></span>
-                        <button @click="next()" :disabled="page===totalPages" class="px-2.5 py-1 rounded-lg text-[11px] font-semibold border disabled:opacity-40 disabled:cursor-not-allowed" :class="page===totalPages ? 'bg-white text-gray-400 border-gray-200' : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'">Next</button>
-                        <a href="{{ route('deliveries.index') }}" class="ml-2 text-[11px] font-semibold text-teal hover:text-teal-dark">Full view →</a>
-                    </div>
-                </div>
-            </div>
-            <div x-show="!expanded" class="px-4 py-3 text-center">
-                <p class="text-[11px] text-gray-500">Compact overview — expand for search, filters and paginated records · <button @click="expanded=true" class="font-semibold text-teal hover:text-teal-dark">Expand</button></p>
             </div>
         </section>
 

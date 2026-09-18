@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Conversation;
 use App\Models\Message;
 use App\Models\MessageAttachment;
+use App\Models\Notification;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -246,6 +247,15 @@ class MessageController extends Controller
                 'last_message_preview' => str($validated['body'])->limit(80),
                 'last_message_at' => now(),
             ]);
+
+            Notification::create([
+                'type' => 'new_message',
+                'title' => 'New Message',
+                'message' => str($validated['body'])->limit(120)->toString(),
+                'icon' => '💬',
+                'priority' => 'normal',
+                'link' => route('messages.index', ['conversation' => $conversation->id]),
+            ]);
         });
 
         if ($request->ajax() || $request->wantsJson()) {
@@ -317,7 +327,7 @@ class MessageController extends Controller
         abort_unless($attachment->fileExists(), 404, 'Attachment is missing or was deleted.');
 
         return response()->file($attachment->absolutePath(), [
-            'Content-Type' => $attachment->mime_type ?: 'application/octet-stream',
+            'Content-Type' => $attachment->contentMime(),
             'Content-Disposition' => $disposition . '; filename="' . basename($attachment->original_filename) . '"',
         ]);
     }

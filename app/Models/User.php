@@ -71,6 +71,23 @@ class User extends Authenticatable
     }
 
     /**
+     * Public URL for the user's profile photo (stored per-user in
+     * logistics_settings.photo_path), or null so callers can fall back to
+     * the initial-letter avatar. Read-only: never creates a settings row.
+     * Returns null when the referenced file is missing on disk.
+     */
+    public function profilePhotoUrl(): ?string
+    {
+        $path = LogisticsSetting::where('user_id', $this->id)->value('photo_path');
+
+        if (! $path || ! file_exists(public_path($path))) {
+            return null;
+        }
+
+        return asset($path);
+    }
+
+    /**
      * Human-readable role label used across the Logistics UI.
      * The internal role values ('admin', 'staff', 'rider') are preserved for
      * authorization; this maps them to Logistics-specific display names.

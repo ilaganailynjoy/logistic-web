@@ -286,11 +286,12 @@ class AssignmentAvailabilityTest extends TestCase
         $this->assertStringContainsString('app', $localAtt->absolutePath());
         $this->assertTrue($localAtt->isImage());
 
-        // Authorized staff can view the local-disk attachment.
+        // Authorized staff can view the local-disk attachment inline.
         $this->actingAs($admin)
             ->get(route('messages.attachments.view', $localAtt))
             ->assertOk()
-            ->assertHeader('Content-Type', 'image/png');
+            ->assertHeader('Content-Type', 'image/png')
+            ->assertHeader('Content-Disposition', 'inline; filename="local-test.png"');
 
         // A non-staff user is redirected away by the staff middleware.
         $plainUser = User::create([
