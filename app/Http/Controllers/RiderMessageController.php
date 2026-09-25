@@ -114,6 +114,10 @@ class RiderMessageController extends Controller
                 'last_message_preview' => str($validated['body'])->limit(80),
                 'last_message_at' => now(),
             ]);
+
+            // Staff-side unread signal (the column is reset when Logistics
+            // opens the thread). Rider's own view derives from message rows.
+            $conversation->increment('unread_count');
         });
 
         return redirect()->route('rider.messages')->with('success', 'Message sent.');

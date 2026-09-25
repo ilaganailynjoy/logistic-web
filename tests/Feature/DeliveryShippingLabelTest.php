@@ -64,7 +64,7 @@ class DeliveryShippingLabelTest extends TestCase
 
         $this->assertStringContainsString('INVOIZ LOGISTICS', $html);
         $this->assertStringContainsString('SHIPPING WAYBILL', $html);
-        $this->assertStringContainsString('src="' . asset('images/logo.png') . '"', $html);
+        $this->assertStringContainsString('src="' . asset('images/logo-nobg.png') . '"', $html);
         $this->assertStringContainsString('alt="INVOIZ logo"', $html);
         $this->assertStringContainsString('WAYBILL / TRACKING', $html);
         $this->assertStringContainsString($delivery->tracking_number, $html);

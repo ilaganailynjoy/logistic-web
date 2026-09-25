@@ -59,6 +59,99 @@
                 clientErrors: {},
                 files: {},
                 liveText: 'Step 1 of 4: Center & Owner',
+                // ── Email OTP verification (mirrors rider apply) ─────────
+                // verifiedEmail holds the server-verified address (lowercase).
+                // It is UX state only: store() re-checks the OTP record.
+                verifiedEmail: opts.verifiedEmail ?? '',
+                verifyCode: '',
+                verifyBusy: false,
+                verifyMsg: '',
+                verifyMsgOk: false,
+                codeSentTo: '',
+                resendWait: 0,
+                resendTimer: null,
+                emailVerifiedNow() {
+                    const current = this.inputValue('email').toLowerCase();
+                    return this.verifiedEmail !== '' && current !== '' && this.verifiedEmail === current;
+                },
+                resetEmailVerification() {
+                    if (this.verifiedEmail && this.verifiedEmail !== this.inputValue('email').toLowerCase()) {
+                        this.verifiedEmail = '';
+                        this.codeSentTo = '';
+                        this.verifyCode = '';
+                        this.verifyMsg = '';
+                    }
+                },
+                csrfToken() {
+                    return document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') ?? '';
+                },
+                startResendCooldown() {
+                    this.resendWait = 60;
+                    if (this.resendTimer) clearInterval(this.resendTimer);
+                    this.resendTimer = setInterval(() => {
+                        this.resendWait -= 1;
+                        if (this.resendWait <= 0) { clearInterval(this.resendTimer); this.resendTimer = null; }
+                    }, 1000);
+                },
+                async sendVerifyCode() {
+                    const email = this.inputValue('email');
+                    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+                        this.setFieldError('email', 'Enter a valid email address first.');
+                        return;
+                    }
+                    this.clearFieldError('email');
+                    this.verifyBusy = true;
+                    this.verifyMsg = '';
+                    try {
+                        const res = await fetch('{{ route('center-application.verification.send') }}', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-TOKEN': this.csrfToken() },
+                            body: JSON.stringify({ email: email, name: this.inputValue('owner_name') }),
+                        });
+                        const data = await res.json().catch(() => ({}));
+                        if (!res.ok) {
+                            this.verifyMsgOk = false;
+                            this.verifyMsg = data.message || 'Unable to send the verification code. Please try again.';
+                            return;
+                        }
+                        this.codeSentTo = email.toLowerCase();
+                        this.verifyMsgOk = true;
+                        this.verifyMsg = data.message || 'Verification code sent. Please check your email.';
+                        this.startResendCooldown();
+                    } catch (e) {
+                        this.verifyMsgOk = false;
+                        this.verifyMsg = 'Unable to send the verification code. Please try again.';
+                    } finally {
+                        this.verifyBusy = false;
+                    }
+                },
+                async confirmVerifyCode() {
+                    const email = this.inputValue('email');
+                    this.verifyBusy = true;
+                    this.verifyMsg = '';
+                    try {
+                        const res = await fetch('{{ route('center-application.verification.verify') }}', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-TOKEN': this.csrfToken() },
+                            body: JSON.stringify({ email: email, code: this.verifyCode.trim() }),
+                        });
+                        const data = await res.json().catch(() => ({}));
+                        if (!res.ok) {
+                            this.verifyMsgOk = false;
+                            this.verifyMsg = (data.errors && data.errors.code && data.errors.code[0]) || data.message || 'Invalid verification code. Please try again.';
+                            return;
+                        }
+                        this.verifiedEmail = email.toLowerCase();
+                        this.verifyCode = '';
+                        this.verifyMsg = '';
+                        this.clearFieldError('email');
+                    } catch (e) {
+                        this.verifyMsgOk = false;
+                        this.verifyMsg = 'Unable to verify the code. Please try again.';
+                    } finally {
+                        this.verifyBusy = false;
+                    }
+                },
                 // ── Address picker (existing cascading PSGC logic) ─────────
                 ...centerAddressPicker({
                     municipalities: opts.municipalities,
@@ -140,7 +233,13 @@
                     ok = this.setFieldError('business_name', this.inputValue('business_name') ? '' : 'The center name is required.') && ok;
                     ok = this.setFieldError('owner_name', this.inputValue('owner_name') ? '' : 'The owner name is required.') && ok;
                     const email = this.inputValue('email');
-                    ok = this.setFieldError('email', !email ? 'The email address is required.' : (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? 'Enter a valid email address.' : '')) && ok;
+                    if (!email) {
+                        ok = this.setFieldError('email', 'The email address is required.') && ok;
+                    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+                        ok = this.setFieldError('email', 'Enter a valid email address.') && ok;
+                    } else if (!this.emailVerifiedNow()) {
+                        ok = this.setFieldError('email', 'Please verify your email address before continuing.') && ok;
+                    }
                     const phoneRaw = this.inputValue('phone');
                     const phone = phoneRaw.replace(/[\s\-()]/g, '');
                     const validPhone = /^(09\d{9}|\+639\d{9})$/.test(phone);
@@ -454,6 +553,7 @@
                   x-data="centerWizard({
                       initialStep: @js($initialStep - 1),
                       errorSteps: @js($zeroBasedErrorSteps),
+                      verifiedEmail: @js($verifiedEmail ?? ''),
                       documentLabels: @js($documentLabels),
                       municipalities: @js($municipalities),
                       barangays: @js($barangays),
@@ -543,12 +643,47 @@
 
                         <div class="min-w-0">
                             <label for="email" class="block text-xs font-semibold tracking-wider uppercase text-gray-500">Email Address <span class="text-red-500" aria-hidden="true">*</span></label>
-                            <input id="email" x-ref="email" x-on:input="clearFieldError('email')" type="email" name="email" value="{{ old('email') }}"
+                            <input id="email" x-ref="email" x-on:input="clearFieldError('email'); resetEmailVerification()" type="email" name="email" value="{{ old('email') }}"
                                    class="block mt-2 w-full @error('email') border-red-400 focus:border-red-500 focus:ring-red-500 @enderror"
                                    required maxlength="255" autocomplete="email" placeholder="you@example.com"
                                    :aria-invalid="clientErrors['email'] ? 'true' : '@error('email') true @enderror'" />
                             <p x-cloak x-show="clientErrors['email']" class="mt-1.5 text-sm text-red-600" x-text="clientErrors['email']"></p>
                             @error('email')<p id="email_error" class="mt-1.5 text-sm text-red-600">{{ $message }}</p>@enderror
+                            {{-- Email OTP verification (mirrors rider apply) --}}
+                            <div x-cloak x-show="!emailVerifiedNow()" class="mt-3 rounded-xl border border-teal/20 bg-teal-light/40 p-4">
+                                <template x-if="!codeSentTo">
+                                    <div>
+                                        <p class="text-xs text-gray-600">Verify this email address to continue. We'll send a 6-digit code.</p>
+                                        <button type="button" x-on:click="sendVerifyCode()" :disabled="verifyBusy"
+                                                class="mt-2 inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl bg-teal px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-teal-dark focus:outline-none focus-visible:ring-2 focus-visible:ring-teal focus-visible:ring-offset-2 disabled:opacity-60 disabled:cursor-not-allowed">
+                                            <span x-text="verifyBusy ? 'Sending...' : 'Send verification code'">Send verification code</span>
+                                        </button>
+                                    </div>
+                                </template>
+                                <template x-if="codeSentTo">
+                                    <div>
+                                        <p class="text-xs text-gray-600">Enter the 6-digit code sent to <span class="font-semibold text-gray-900" x-text="codeSentTo"></span>.</p>
+                                        <div class="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center">
+                                            <input type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="123456"
+                                                   x-model="verifyCode" :disabled="verifyBusy" aria-label="Verification code"
+                                                   class="block w-full sm:max-w-[12rem] text-center font-mono tracking-[0.3em]" />
+                                            <button type="button" x-on:click="confirmVerifyCode()" :disabled="verifyBusy || verifyCode.trim().length !== 6"
+                                                    class="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl bg-teal px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-teal-dark focus:outline-none focus-visible:ring-2 focus-visible:ring-teal focus-visible:ring-offset-2 disabled:opacity-60 disabled:cursor-not-allowed">
+                                                <span x-text="verifyBusy ? 'Verifying...' : 'Verify'">Verify</span>
+                                            </button>
+                                        </div>
+                                        <button type="button" x-on:click="sendVerifyCode()" :disabled="verifyBusy || resendWait > 0"
+                                                class="mt-1.5 min-h-[36px] text-xs font-semibold text-teal hover:text-teal-dark underline underline-offset-2 rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-teal disabled:opacity-60 disabled:no-underline">
+                                            <span x-text="resendWait > 0 ? 'Resend code in ' + resendWait + 's' : 'Resend code'">Resend code</span>
+                                        </button>
+                                    </div>
+                                </template>
+                                <p x-cloak x-show="verifyMsg" class="mt-2 text-sm" :class="verifyMsgOk ? 'text-emerald-600' : 'text-red-600'" x-text="verifyMsg"></p>
+                            </div>
+                            <div x-cloak x-show="emailVerifiedNow()" class="mt-3 flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 p-3" role="status">
+                                <svg class="h-5 w-5 flex-none text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+                                <p class="text-sm font-semibold text-emerald-700">Email verified<span x-text="verifiedEmail ? ' — ' + verifiedEmail : ''"></span></p>
+                            </div>
                         </div>
 
                         <div class="min-w-0">
@@ -825,7 +960,7 @@
                             id="wizard-submit"
                             x-show="step === 3"
                             x-cloak
-                            :disabled="submitting"
+                            :disabled="submitting || !emailVerifiedNow()"
                             class="inline-flex min-h-[48px] items-center justify-center gap-2 rounded-xl bg-teal px-8 py-3 text-sm font-semibold text-white transition-colors hover:bg-teal-dark focus:outline-none focus-visible:ring-2 focus-visible:ring-teal focus-visible:ring-offset-2 disabled:opacity-70 disabled:cursor-not-allowed">
                         <svg x-show="submitting" x-cloak class="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                             <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>

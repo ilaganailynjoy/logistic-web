@@ -2,14 +2,19 @@
 
 namespace App\Http\Controllers;
 
+use App\Mail\RiderCredentialsResetMail;
+use App\Models\Notification;
 use App\Models\Rider;
 use App\Models\Delivery;
 use App\Models\LogisticsCenter;
-use App\Models\Notification;
 use App\Models\ServiceArea;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Str;
 use Illuminate\View\View;
 
 class RiderController extends Controller
@@ -132,6 +137,48 @@ class RiderController extends Controller
         ]);
 
         return back()->with('success', "Rider {$rider->name} deactivated. Existing deliveries have been preserved.");
+    }
+
+    /**
+     * Generate a NEW login credential for the rider (credential reset).
+     *
+     * Same provisioning concept as rider-application approval: a brand-new
+     * secure temporary password is generated, stored on the rider's users
+     * row as a hash (never plaintext, never logged, never exposed via the
+     * API or UI), and mailed to the rider's registered email. The previous
+     * password is rotated out immediately and cannot be recovered. Rider
+     * status and assignments are left untouched.
+     */
+    public function resetCredentials(Request $request, Rider $rider): RedirectResponse
+    {
+        $this->authorizeRiderCenter($rider);
+
+        $user = User::where('email', $rider->email)->where('role', 'rider')->first();
+
+        abort_unless($user instanceof User, 422, 'No rider login account exists for this rider.');
+
+        $password = Str::random(12);
+
+        $user->update(['password' => Hash::make($password)]);
+
+        // The plaintext password lives only in memory for this single
+        // mailable and is discarded afterwards. If delivery fails the
+        // rider account is kept with the new hash in place.
+        $mailSent = false;
+        try {
+            Mail::to($rider->email)->send(
+                new RiderCredentialsResetMail($rider->fresh(), $password)
+            );
+            $mailSent = true;
+        } catch (\Throwable $e) {
+            report($e);
+        }
+
+        $message = $mailSent
+            ? "New login credentials have been generated and sent to: {$rider->email}"
+            : "New login credentials could not be emailed to {$rider->email}. Please contact the rider through a secure channel.";
+
+        return back()->with('success', $message);
     }
 
     /**

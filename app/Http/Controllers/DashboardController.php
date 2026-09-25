@@ -210,7 +210,10 @@ class DashboardController extends Controller
         // ── Chart: Center Performance (bar) ──────────────────────────────
         $centerPerformanceChart = $this->buildCenterPerformanceData($staffCenterId);
 
-        // ── Detailed Records for frontend (paginated, searchable) ─────────
+        // ── Detailed Records: latest 50 for frontend-only search/sort/paginate.
+        // Intentionally lightweight (not the full Deliveries manager): the
+        // limit applies before any filtering, and the view links out to
+        // deliveries.index for server-side search across all records.
         $recentDeliveriesForView = $this->deliveryQuery($staffCenterId)
             ->latest('updated_at')
             ->with(['rider', 'serviceArea', 'logisticsCenter'])

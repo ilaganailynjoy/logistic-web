@@ -160,6 +160,7 @@
                         <ul class="divide-y divide-gray-100">
                             @foreach([
                                 'rider_applications'  => ['New Rider Applications',  'Notified when a rider submits an application'],
+                                'application_updates' => ['Application Updates',     'Notified about Logistics Center application submissions and decisions'],
                                 'delivery_requests'   => ['New Delivery Requests',   'Notified when a new delivery is created'],
                                 'failed_deliveries'   => ['Failed Deliveries',       'Notified when a delivery attempt fails'],
                                 'failed_pickups'      => ['Failed Pickups',          'Notified when a rider cannot pick up a package'],
@@ -182,7 +183,7 @@
                             <li class="px-6 py-4 flex items-center justify-between gap-4 bg-surface-soft/50">
                                 <div>
                                     <p class="text-sm font-semibold text-gray-900">Email Notifications</p>
-                                    <p class="text-xs text-gray-500 mt-0.5">Also receive email copies of your notifications</p>
+                                    <p class="text-xs text-gray-500 mt-0.5">Saved preference — email delivery is not currently configured</p>
                                 </div>
                                 <label class="relative inline-flex items-center cursor-pointer flex-shrink-0" aria-label="Toggle Email Notifications">
                                     <input type="hidden" name="email_notifications" value="0">

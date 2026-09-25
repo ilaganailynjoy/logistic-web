@@ -624,4 +624,56 @@ class SettingsFunctionalTest extends TestCase
             ->assertSee('203.0.113.7')
             ->assertSee('Login History');
     }
+
+    // ── Audit fixes: application_updates + email honesty ──────────
+
+    public function test_application_updates_toggle_renders_persists_and_filters_bell(): void
+    {
+        $user = $this->admin();
+
+        // The toggle exists in the UI (previously backend-only).
+        $this->actingAs($user)
+            ->get(route('settings.index'))
+            ->assertOk()
+            ->assertSee('Application Updates');
+
+        $centerNotif = Notification::create($this->notificationPayload([
+            'type' => 'new_center_application',
+            'title' => 'Center Bell ' . uniqid(),
+        ]));
+
+        // Defaults: visible.
+        $titles = array_column(
+            $this->actingAs($user)->getJson(route('notifications.index'))->assertOk()->json('notifications'),
+            'title'
+        );
+        $this->assertContains($centerNotif->title, $titles);
+
+        // Disable only this category: matching rows leave the bell.
+        $payload = array_fill_keys(LogisticsSetting::NOTIFICATION_KEYS, 1);
+        $payload['application_updates'] = 0;
+        $this->actingAs($user)->put(route('settings.update-notifications'), $payload)->assertRedirect();
+
+        $this->assertFalse(LogisticsSetting::forUser($user->id)->fresh()->notificationEnabled('application_updates'));
+
+        $titles = array_column(
+            $this->actingAs($user)->getJson(route('notifications.index'))->assertOk()->json('notifications'),
+            'title'
+        );
+        $this->assertNotContains($centerNotif->title, $titles);
+    }
+
+    public function test_email_notifications_wording_is_honest(): void
+    {
+        // No staff notification emails are dispatched anywhere in the app,
+        // so the toggle must not promise email copies.
+        $this->assertSame(0, Notification::where('type', 'staff_email_probe')->count());
+
+        $this->actingAs($this->admin())
+            ->get(route('settings.index'))
+            ->assertOk()
+            ->assertSee('Email Notifications')
+            ->assertSee('email delivery is not currently configured')
+            ->assertDontSee('Also receive email copies of your notifications');
+    }
 }

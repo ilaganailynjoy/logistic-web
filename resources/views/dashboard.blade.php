@@ -424,7 +424,7 @@
             <div class="px-4 sm:px-5 py-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-gray-100">
                 <div class="min-w-0">
                     <h2 class="text-xs font-bold text-gray-900 leading-tight">Detailed Records</h2>
-                    <p class="text-[10px] text-gray-500 mt-0.5">Search, filter and paginate deliveries · <span class="font-medium" x-text="filtered.length + ' of ' + all.length"></span></p>
+                    <p class="text-[10px] text-gray-500 mt-0.5">Search, filter and paginate recent deliveries · <span class="font-medium" x-text="filtered.length + ' of ' + all.length"></span></p>
                 </div>
                 <button @click="expanded = !expanded" class="inline-flex items-center gap-1.5 text-[11px] font-semibold text-teal hover:text-teal-dark bg-teal-light/50 hover:bg-teal-light px-3 py-1 rounded-full transition flex-shrink-0" :aria-expanded="expanded.toString()" aria-label="Toggle detailed records">
                     <span x-text="expanded ? 'Collapse' : 'Expand'"></span>
@@ -437,7 +437,7 @@
                     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
                         <label class="flex flex-col gap-1">
                             <span class="text-[10px] font-semibold text-gray-600">Search</span>
-                            <input x-model="search" @input.debounce.300ms="applyFilters()" type="text" placeholder="Tracking #, recipient, rider…" class="w-full rounded-lg border-gray-200 text-xs px-2.5 py-1.5 focus:border-teal focus:ring-teal" aria-label="Search deliveries">
+                            <input x-model="search" @input.debounce.300ms="applyFilters()" type="text" placeholder="Tracking #, recipient, center…" class="w-full rounded-lg border-gray-200 text-xs px-2.5 py-1.5 focus:border-teal focus:ring-teal" aria-label="Search recent deliveries">
                         </label>
                         <label class="flex flex-col gap-1">
                             <span class="text-[10px] font-semibold text-gray-600">Status</span>
@@ -470,10 +470,15 @@
                     <p class="text-[10px] text-gray-400">Frontend-only filtering of the current page’s records · Use <a href="{{ route('deliveries.index') }}" class="text-teal hover:underline font-medium">Deliveries →</a> for server-side search & pagination</p>
                 </div>
 
-                <div x-show="paginated.length === 0" class="py-10 text-center">
+                <div x-show="paginated.length === 0 && all.length > 0" class="py-10 text-center">
                     <p class="text-xs font-semibold text-gray-700">No records match your filters</p>
                     <p class="text-[11px] text-gray-500 mt-1">Try adjusting search or filters</p>
                     <button @click="clearFilters()" class="mt-3 text-[11px] font-semibold text-teal hover:text-teal-dark">Clear filters</button>
+                </div>
+
+                <div x-show="all.length === 0" class="py-10 text-center">
+                    <p class="text-xs font-semibold text-gray-700">No delivery records yet</p>
+                    <p class="text-[11px] text-gray-500 mt-1">New deliveries will appear here once created</p>
                 </div>
 
                 {{-- Desktop table --}}
@@ -1052,7 +1057,9 @@
             next() { if (this.page < this.totalPages) { this.page++; this.paginate(); } },
             clearFilters() { this.search=''; this.statusFilter=''; this.centerFilter=''; this.sortBy='updated_desc'; this.page=1; this.applyFilters(); },
             statusClass(raw) {
-                const map = { 'waiting_for_rider':'bg-amber-100 text-amber-700', 'assigned':'bg-blue-100 text-blue-700', 'delivered':'bg-emerald-100 text-emerald-700', 'delivery_failed':'bg-red-100 text-red-700', 'cancelled':'bg-gray-100 text-gray-600', 'out_for_delivery':'bg-purple-100 text-purple-700', 'picked_up':'bg-teal-100 text-teal-700' };
+                // Mini-pill hues mirror the canonical status badge so the same
+                // status reads identically in both places.
+                const map = { 'waiting_for_rider':'bg-amber-100 text-amber-700', 'assigned':'bg-blue-100 text-blue-700', 'accepted':'bg-cyan-100 text-cyan-700', 'going_to_pickup':'bg-sky-100 text-sky-700', 'arrived_at_shop':'bg-sky-100 text-sky-700', 'picked_up':'bg-indigo-100 text-indigo-700', 'out_for_delivery':'bg-purple-100 text-purple-700', 'arrived_at_customer':'bg-violet-100 text-violet-700', 'delivered':'bg-emerald-100 text-emerald-700', 'delivery_failed':'bg-red-100 text-red-700', 'cancelled':'bg-gray-100 text-gray-600' };
                 return map[raw] || 'bg-gray-100 text-gray-600';
             }
         }

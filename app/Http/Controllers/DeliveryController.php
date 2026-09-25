@@ -7,6 +7,7 @@ use App\Models\DeliveryFailure;
 use App\Models\DeliveryStatusLog;
 use App\Models\LogisticsSetting;
 use App\Models\Rider;
+use App\Models\RiderNotification;
 use App\Models\Notification;
 use App\Models\LogisticsCenter;
 use App\Models\ServiceArea;
@@ -213,8 +214,13 @@ class DeliveryController extends Controller
             'logisticsCenter',
             'destinationCenter',
             'serviceArea',
+            'sortingCenterHandoffRider',
+            'sortingCenterPickupRider',
             'order.buyer',
             'order.items.seller',
+            'pickupRequest.center',
+            'pickupRequest.reviewer',
+            'transaction',
         ]);
 
         // Read-only order-side context for the unified shipping waybill.
@@ -490,6 +496,18 @@ class DeliveryController extends Controller
             'link' => route('deliveries.show', $delivery),
         ]);
 
+        // In-app rider notification for the newly assigned rider only, after
+        // the assignment transaction succeeded. Reassignment notifies the
+        // new holder, never the previous one; notifyOnce suppresses
+        // duplicates from retried posts.
+        RiderNotification::notifyOnce(
+            $rider->id,
+            'delivery_assigned',
+            ['delivery_id' => $delivery->id, 'tracking_number' => $delivery->tracking_number],
+            'New Delivery Assignment',
+            "You have been assigned delivery {$delivery->tracking_number}.",
+        );
+
         return redirect()->back()->with('success', "Rider {$rider->name} assigned successfully.");
     }
 
@@ -624,6 +642,19 @@ class DeliveryController extends Controller
                 'priority' => $priority,
                 'link' => route('deliveries.show', $delivery),
             ]);
+        }
+
+        // Staff-marked failures affect the assigned rider, who may not know.
+        // Rider-initiated failures need no notice (the actor already knows).
+        if ($target === 'delivery_failed' && $delivery->rider_id) {
+            RiderNotification::notifyOnce(
+                $delivery->rider_id,
+                'delivery_failed',
+                ['delivery_id' => $delivery->id, 'tracking_number' => $delivery->tracking_number],
+                'Delivery Failed',
+                "Delivery {$delivery->tracking_number} has been marked as failed."
+                    . ($reasonText ? " Reason: {$reasonText}" : ''),
+            );
         }
 
         $label = str_replace('_', ' ', $target);
@@ -824,41 +855,65 @@ class DeliveryController extends Controller
             ], 403);
         }
 
-        if ($delivery->parcel_status === 'scanned') {
+        // The state checks below run again inside a row lock so two
+        // near-simultaneous scans of the same parcel cannot both pass the
+        // `received` check and write duplicate scanned rows. Responses and
+        // transition rules are unchanged.
+        return DB::transaction(function () use ($delivery, $user) {
+            $fresh = Delivery::whereKey($delivery->id)->lockForUpdate()->first();
+
+            if (! $fresh || $fresh->archived_at) {
+                return response()->json([
+                    'ok' => false,
+                    'error' => 'not_found',
+                    'message' => 'No parcel found with tracking number ' . $delivery->tracking_number . '.',
+                ], 404);
+            }
+
+            if ($user->isStaff() && $user->center_id && $fresh->center_id !== null && (int) $user->center_id !== (int) $fresh->center_id) {
+                return response()->json([
+                    'ok' => false,
+                    'error' => 'forbidden',
+                    'message' => 'This parcel belongs to another logistics center.',
+                ], 403);
+            }
+
+            if ($fresh->parcel_status === 'scanned') {
+                return response()->json([
+                    'ok' => true,
+                    'already' => true,
+                    'message' => 'Parcel was already scanned' . ($fresh->scanned_at ? ' on ' . $fresh->scanned_at->format('M d, Y h:i A') : '') . '.',
+                    'delivery' => $this->scanResultPayload($fresh),
+                ]);
+            }
+
+            if ($fresh->parcel_status !== 'received') {
+                return response()->json([
+                    'ok' => false,
+                    'error' => 'invalid_state',
+                    'message' => 'Parcel must be received before scanning (current status: ' . str_replace('_', ' ', $fresh->parcel_status ?? 'pending_arrival') . ').',
+                    'delivery' => $this->scanResultPayload($fresh),
+                ], 422);
+            }
+
+            $fresh->update([
+                'parcel_status' => 'scanned',
+                'scanned_at' => now(),
+            ]);
+
+            DeliveryStatusLog::create([
+                'delivery_id' => $fresh->id,
+                'status' => 'scanned',
+                'notes' => 'Parcel scanned and verified via QR.',
+                'changed_by' => Auth::id(),
+            ]);
+
             return response()->json([
                 'ok' => true,
-                'already' => true,
-                'message' => 'Parcel was already scanned' . ($delivery->scanned_at ? ' on ' . $delivery->scanned_at->format('M d, Y h:i A') : '') . '.',
-                'delivery' => $this->scanResultPayload($delivery),
+                'message' => 'Parcel scanned successfully.',
+                'delivery' => $this->scanResultPayload($fresh),
             ]);
-        }
-
-        if ($delivery->parcel_status !== 'received') {
-            return response()->json([
-                'ok' => false,
-                'error' => 'invalid_state',
-                'message' => 'Parcel must be received before scanning (current status: ' . str_replace('_', ' ', $delivery->parcel_status ?? 'pending_arrival') . ').',
-                'delivery' => $this->scanResultPayload($delivery),
-            ], 422);
-        }
-
-        $delivery->update([
-            'parcel_status' => 'scanned',
-            'scanned_at' => now(),
-        ]);
-
-        DeliveryStatusLog::create([
-            'delivery_id' => $delivery->id,
-            'status' => 'scanned',
-            'notes' => 'Parcel scanned and verified via QR.',
-            'changed_by' => Auth::id(),
-        ]);
-
-        return response()->json([
-            'ok' => true,
-            'message' => 'Parcel scanned successfully.',
-            'delivery' => $this->scanResultPayload($delivery),
-        ]);
+        });
     }
 
     private function scanResultPayload(Delivery $delivery): array
@@ -901,6 +956,19 @@ class DeliveryController extends Controller
             'notes' => 'Parcel sorted. Destination: ' . LogisticsCenter::find($validated['destination_center_id'])->name . '.',
             'changed_by' => Auth::id(),
         ]);
+
+        // A sorted parcel is actionable for its assigned delivery rider.
+        // Unassigned parcels notify nobody; later assignment covers them.
+        if ($delivery->rider_id) {
+            $holdingCenter = $delivery->logisticsCenter?->name ?? 'the sorting center';
+            RiderNotification::notifyOnce(
+                $delivery->rider_id,
+                'parcel_ready',
+                ['delivery_id' => $delivery->id, 'tracking_number' => $delivery->tracking_number],
+                'Parcel Ready for Pickup',
+                "Parcel {$delivery->tracking_number} is sorted and ready for pickup at {$holdingCenter}.",
+            );
+        }
 
         return redirect()->back()->with('success', 'Parcel sorted successfully.');
     }

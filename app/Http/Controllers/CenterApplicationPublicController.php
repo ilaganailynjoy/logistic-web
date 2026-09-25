@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\LogisticsCenterApplicationDocument;
 use App\Models\Province;
+use App\Models\RiderEmailVerification;
 use App\Services\CenterApplicationService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -50,6 +51,10 @@ class CenterApplicationPublicController extends Controller
             'provinces' => $provinces,
             'municipalities' => $this->addressOptions($municipalities, old('municipality')),
             'barangays' => $this->addressOptions($barangays, old('barangay')),
+            // Restore the verified badge after a failed submission without
+            // trusting the client: only a server-side consumed OTP counts,
+            // and store() re-checks it before persisting anything.
+            'verifiedEmail' => $this->verifiedOldEmail(),
         ]);
     }
 
@@ -75,12 +80,45 @@ class CenterApplicationPublicController extends Controller
 
     public function store(Request $request, CenterApplicationService $service): RedirectResponse
     {
+        // Email OTP gate (mirrors the rider apply flow): only a server-side
+        // consumed verification for the exact submitted address authorizes
+        // the submission. Runs only for well-formed addresses so missing or
+        // malformed emails still surface the standard validation errors.
+        // The shared service and the mobile API are intentionally untouched.
+        $email = strtolower(trim((string) $request->input('email', '')));
+
+        if ($email !== '' && filter_var($email, FILTER_VALIDATE_EMAIL)
+            && ! RiderEmailVerification::isVerified($email)) {
+            return redirect()
+                ->route('center-application.apply')
+                ->withInput()
+                ->withErrors(['email' => 'Please verify your email address before submitting your application.']);
+        }
+
         $application = $service->create($request, 'web');
         $service->notifyNewApplication($application);
 
         return redirect()
             ->route('center-application.apply')
             ->with('success', 'Your Logistics Center application has been submitted successfully. Use the "Check a Logistics Center Application Status" page with the email you registered to track its progress.');
+    }
+
+    /**
+     * The previously submitted email, but only when it still holds a
+     * server-side consumed OTP verification. Lets the wizard restore its
+     * verified badge after a failed submission round-trip.
+     */
+    private function verifiedOldEmail(): string
+    {
+        $email = old('email');
+
+        if (! is_string($email) || trim($email) === '') {
+            return '';
+        }
+
+        $normalized = strtolower(trim($email));
+
+        return RiderEmailVerification::isVerified($normalized) ? $normalized : '';
     }
 
     public function status(Request $request): View

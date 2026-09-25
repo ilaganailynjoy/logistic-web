@@ -30,7 +30,9 @@ class NotificationController extends Controller
         $notification->markAsRead();
 
         return response()->json([
-            'unread_count' => Notification::unread()->count(),
+            // Scoped like the bell list itself: suppressed preference types
+            // must not inflate the badge.
+            'unread_count' => Notification::forUserPreferences(auth()->id())->unread()->count(),
         ]);
     }
 
@@ -39,7 +41,7 @@ class NotificationController extends Controller
         Notification::unread()->update(['is_read' => true]);
 
         return response()->json([
-            'unread_count' => 0,
+            'unread_count' => Notification::forUserPreferences(auth()->id())->unread()->count(),
         ]);
     }
 }

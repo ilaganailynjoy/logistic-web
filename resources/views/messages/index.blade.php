@@ -48,11 +48,15 @@
                     @endif
                 </form>
 
-                {{-- Filters (generated from participant types that actually exist) --}}
-                <div class="flex gap-1.5">
+                {{-- Filters (inbox states + participant types that actually exist) --}}
+                <div class="flex gap-1.5 flex-wrap">
                     <a href="{{ request()->fullUrlWithQuery(['filter' => 'all', 'page' => null]) }}"
                        class="px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors {{ request('filter', 'all') === 'all' ? 'bg-teal text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200' }}">
                         All
+                    </a>
+                    <a href="{{ request()->fullUrlWithQuery(['filter' => 'unread', 'page' => null]) }}"
+                       class="px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors {{ request('filter', 'all') === 'unread' ? 'bg-teal text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200' }}">
+                        Unread
                     </a>
                     @foreach($roleFilters as $type)
                         <a href="{{ request()->fullUrlWithQuery(['filter' => $type, 'page' => null]) }}"
@@ -115,7 +119,9 @@
                         </svg>
                     </div>
                     <p class="text-sm font-semibold text-gray-700">
-                        @if(request('filter', 'all') !== 'all')
+                        @if(request('filter', 'all') === 'unread')
+                            No unread conversations.
+                        @elseif(request('filter', 'all') !== 'all')
                             No conversations with {{ \Illuminate\Support\Str::plural(request('filter')) }} yet.
                         @elseif(trim((string) request('search')) !== '')
                             No messages found.
@@ -123,7 +129,7 @@
                             No messages yet.
                         @endif
                     </p>
-                    <p class="text-xs text-gray-500 mt-1">When a rider messages Logistics, the conversation will appear here automatically.</p>
+                    <p class="text-xs text-gray-500 mt-1">Delivery, pickup, order, and support conversations appear here automatically.</p>
                 </div>
             </div>
 
@@ -169,9 +175,13 @@
                 </div>
             </div>
 
-            {{-- Messages (Alpine-driven, auto-updates) --}}
-            <div x-ref="thread" class="flex-1 overflow-y-auto px-5 py-4 space-y-1"
+            {{-- Messages (Alpine-driven, auto-updates). Files can be dropped here to attach. --}}
+            <div x-ref="thread" @dragover.prevent="dragging = true" @dragleave="dragging = false" @drop.prevent="dropAttachment($event)"
+                 class="relative flex-1 overflow-y-auto px-5 py-4 space-y-1"
                  style="background: linear-gradient(180deg, #F7F6F2 0%, #FFFFFF 100%);">
+                <div x-show="dragging" x-cloak class="pointer-events-none absolute inset-0 z-20 flex items-center justify-center rounded-xl border-2 border-dashed border-teal bg-teal-light/70 m-2">
+                    <p class="text-sm font-semibold text-teal-dark">Drop file here to attach</p>
+                </div>
 
                 <template x-for="(msg, idx) in messages" :key="msg.id">
                     <div>
@@ -208,12 +218,20 @@
                                     </div>
                                 </template>
 
-                                <div class="flex items-center gap-1.5 mt-1 px-1" :class="msg.mine ? 'justify-end' : 'justify-start'">
+                                <div class="flex items-center gap-1.5 mt-1 px-1 relative" :class="msg.mine ? 'justify-end' : 'justify-start'">
                                     <span class="text-[10px] text-gray-400" x-text="msg.time"></span>
                                     <template x-if="msg.mine && !msg.deleted">
                                         <div class="flex items-center gap-1">
-                                            <button type="button" @click="startEdit(msg)" class="text-[10px] text-gray-400 hover:text-teal opacity-0 group-hover:opacity-100 transition" title="Edit message">Edit</button>
-                                            <button type="button" @click="deleteMessage(msg)" class="text-[10px] text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition" title="Delete message">Delete</button>
+                                            <div class="relative">
+                                                <button type="button" @click="openMenu = (openMenu === msg.id ? null : msg.id)" class="p-1 rounded-md text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition" title="Message actions" :aria-expanded="openMenu === msg.id ? 'true' : 'false'">
+                                                    <svg class="h-3.5 w-3.5" fill="currentColor" viewBox="0 0 20 20"><circle cx="10" cy="4" r="1.6"/><circle cx="10" cy="10" r="1.6"/><circle cx="10" cy="16" r="1.6"/></svg>
+                                                </button>
+                                                <div x-show="openMenu === msg.id" @click.outside="openMenu = null" x-cloak
+                                                     class="absolute bottom-full right-0 mb-1 w-32 rounded-xl border border-gray-200 bg-white shadow-lg py-1 z-30">
+                                                    <button type="button" @click="openMenu = null; startEdit(msg)" class="block w-full text-left px-3 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50">Edit</button>
+                                                    <button type="button" @click="openMenu = null; deleteMessage(msg)" class="block w-full text-left px-3 py-1.5 text-xs font-medium text-red-500 hover:bg-red-50">Delete</button>
+                                                </div>
+                                            </div>
                                             <span x-show="msg.is_read" class="text-teal">
                                                 <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
                                             </span>
@@ -235,6 +253,21 @@
 
             {{-- Message Input --}}
             <div class="px-5 py-4 border-t border-gray-200 bg-white flex-shrink-0">
+                {{-- Pre-send attachment preview --}}
+                <div x-show="attachmentName" x-cloak class="mb-2.5 flex items-center gap-2.5 rounded-xl border border-gray-200 bg-gray-50 p-2 pr-2.5 max-w-sm">
+                    <template x-if="attachmentIsImage && attachmentPreview">
+                        <img :src="attachmentPreview" alt="Attachment preview" class="h-12 w-12 rounded-lg object-cover flex-shrink-0">
+                    </template>
+                    <template x-if="!attachmentIsImage || !attachmentPreview">
+                        <span class="flex h-12 w-12 items-center justify-center rounded-lg bg-white border border-gray-200 text-gray-400 flex-shrink-0">
+                            <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/></svg>
+                        </span>
+                    </template>
+                    <span class="min-w-0 flex-1 truncate text-xs font-medium text-gray-700" x-text="attachmentName"></span>
+                    <button type="button" @click="clearAttachment()" class="flex-shrink-0 p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition" title="Remove attachment" aria-label="Remove attachment">
+                        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                    </button>
+                </div>
                 <form @submit.prevent="sendMessage" class="flex items-end gap-3">
                     <div class="flex-1">
                         <div x-show="editing" x-cloak class="flex items-center justify-between bg-amber-50 border border-amber-200 rounded-t-xl px-3 py-1.5">
@@ -252,9 +285,8 @@
                         <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
                         </svg>
-                        <input type="file" class="hidden" x-ref="attachment" accept=".jpg,.jpeg,.png,.webp,.pdf,.doc,.docx,.xls,.xlsx,.csv">
+                        <input type="file" class="hidden" x-ref="attachment" @change="previewAttachment()" accept=".jpg,.jpeg,.png,.webp,.pdf,.doc,.docx,.xls,.xlsx,.csv">
                     </label>
-                    <span x-show="attachmentName" x-cloak class="text-[11px] text-gray-500 max-w-[120px] truncate" x-text="attachmentName"></span>
 
                     <button type="submit" :disabled="sending"
                             class="flex items-center justify-center h-[42px] w-[42px] rounded-xl bg-teal text-white hover:bg-teal-dark shadow-sm transition-all flex-shrink-0 disabled:opacity-60">
@@ -307,6 +339,10 @@
                 csrf: init.csrf,
                 draft: '',
                 attachmentName: '',
+                attachmentPreview: '',
+                attachmentIsImage: false,
+                dragging: false,
+                openMenu: null,
                 editing: null,
                 sending: false,
                 error: '',
@@ -352,6 +388,7 @@
                         this.conversations = this.conversations.map(c => c.id === id ? { ...c, unread: 0 } : c);
                         this.editing = null;
                         this.draft = '';
+                        this.openMenu = null;
 
                         // Keep the selected conversation after a page refresh.
                         const params = new URLSearchParams(window.location.search);
@@ -365,6 +402,7 @@
 
                 async sendMessage() {
                     if (!this.active) return;
+                    if (this.sending) return;
                     const body = this.draft.trim();
                     if (!body && !this.$refs.attachment.files.length) {
                         this.error = 'Please type a message before sending.';
@@ -395,7 +433,7 @@
                         }
                         this.draft = '';
                         this.$refs.attachment.value = '';
-                        this.attachmentName = '';
+                        this.clearAttachment();
                         await this.poll();
                     } catch (e) {
                         this.error = e.message || 'The message could not be sent.';
@@ -408,6 +446,53 @@
                     this.editing = msg;
                     this.draft = msg.body;
                     this.$refs.bodyInput.focus();
+                },
+
+                formatSize(bytes) {
+                    if (!bytes || bytes <= 0) return '';
+                    const units = ['B', 'KB', 'MB'];
+                    let size = bytes, unit = 0;
+                    while (size >= 1024 && unit < units.length - 1) { size /= 1024; unit++; }
+                    return (unit === 0 ? size : size.toFixed(1)) + ' ' + units[unit];
+                },
+
+                previewAttachment() {
+                    const file = this.$refs.attachment.files[0];
+                    this.clearAttachment(false);
+                    if (!file) return;
+                    if (file.size > 5 * 1024 * 1024) {
+                        this.error = 'Attachment must not exceed 5 MB.';
+                        this.$refs.attachment.value = '';
+                        return;
+                    }
+                    this.attachmentName = file.name + (file.size ? ' · ' + this.formatSize(file.size) : '');
+                    if ((file.type || '').startsWith('image/')) {
+                        this.attachmentIsImage = true;
+                        this.attachmentPreview = URL.createObjectURL(file);
+                    }
+                },
+
+                clearAttachment(clearInput = true) {
+                    if (this.attachmentPreview) {
+                        URL.revokeObjectURL(this.attachmentPreview);
+                        this.attachmentPreview = '';
+                    }
+                    this.attachmentIsImage = false;
+                    this.attachmentName = '';
+                    if (clearInput && this.$refs.attachment) this.$refs.attachment.value = '';
+                },
+
+                dropAttachment(event) {
+                    this.dragging = false;
+                    const file = event.dataTransfer && event.dataTransfer.files && event.dataTransfer.files[0];
+                    if (!file) return;
+                    try {
+                        this.$refs.attachment.files = event.dataTransfer.files;
+                    } catch (e) {
+                        this.error = 'Could not attach that file. Use the attach button instead.';
+                        return;
+                    }
+                    this.previewAttachment();
                 },
 
                 cancelEdit() {

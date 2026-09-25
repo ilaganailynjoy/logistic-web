@@ -38,7 +38,7 @@
                 </div>
                 <div class="flex flex-wrap gap-2">
                     <button type="button" x-show="['idle','stopped','denied','unsupported','error'].includes(state) || state === 'done'" x-cloak
-                            @click="start()"
+                            @click="scanAnother(); start()"
                             class="inline-flex items-center gap-2 bg-teal hover:bg-teal-dark text-white font-semibold px-4 py-2.5 rounded-xl transition shadow-sm text-sm">
                         <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
                         <span x-text="state === 'done' ? 'Scan Another Parcel' : 'Start Camera'"></span>
@@ -221,6 +221,17 @@
 
                     init() {
                         window.addEventListener('beforeunload', () => this.stopCamera());
+                        // A hidden tab keeps the camera hardware on (requestAnimationFrame
+                        // just throttles), so pause capture when the page is hidden.
+                        // The user restarts explicitly on return — never auto-resume.
+                        document.addEventListener('visibilitychange', () => {
+                            if (!document.hidden) return;
+                            this.stopCamera();
+                            if (this.state === 'running' || this.state === 'starting') {
+                                this.state = 'stopped';
+                                this.message = 'Camera paused because the tab was hidden. Press Start Camera to resume.';
+                            }
+                        });
                     },
 
                     get canUseCamera() {
@@ -353,9 +364,21 @@
                                 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
                             },
                             body: JSON.stringify({ tracking_number: value }),
-                        }).then(r => r.json().then(data => ({ ok: r.ok, data })))
-                          .then(({ ok, data }) => {
+                        }).then(async r => {
+                            // Parse defensively: an expired session or a server
+                            // error page returns HTML, not JSON. Never let a
+                            // parse failure surface as a confusing message.
+                            let data = null;
+                            try { data = await r.json(); } catch (e) { data = null; }
+                            return { ok: r.ok, data: data, parsed: !!data };
+                        })
+                          .then(({ ok, data, parsed }) => {
                               this.busy = false;
+                              if (!parsed) {
+                                  this.state = 'error';
+                                  this.alertText = 'Unexpected server response. Your session may have expired — refresh the page and try again.';
+                                  return;
+                              }
                               this.handleResponse(data);
                           })
                           .catch(() => {

@@ -46,7 +46,10 @@ return [
             'username' => env('MAIL_USERNAME'),
             'password' => env('MAIL_PASSWORD'),
             'encryption' => env('MAIL_ENCRYPTION', 'tls'),
-            'timeout' => null,
+            // Bounded SMTP timeout so a stalled mail server surfaces as a
+            // catchable exception (handled per-endpoint) instead of hanging
+            // the request into PHP's max execution time fatal.
+            'timeout' => env('MAIL_TIMEOUT', 10),
             'local_domain' => env('MAIL_EHLO_DOMAIN', parse_url((string) env('APP_URL', 'http://localhost'), PHP_URL_HOST)),
         ],
 

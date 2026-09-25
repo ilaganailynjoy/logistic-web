@@ -133,6 +133,9 @@ class RiderMessageController extends Controller
                 'last_message_preview' => str($validated['body'])->limit(80),
                 'last_message_at' => now(),
             ]);
+
+            // Staff-side unread signal (reset when Logistics opens the thread).
+            $conversation->increment('unread_count');
         });
 
         $message->load('attachments');

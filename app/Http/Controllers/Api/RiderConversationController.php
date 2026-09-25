@@ -191,10 +191,53 @@ class RiderConversationController extends Controller
                 ]);
             }
             $conversation->update(['last_message_preview' => str($validated['body'])->limit(80), 'last_message_at' => now()]);
+            // Staff-side unread signal (reset when Logistics opens the thread).
+            $conversation->increment('unread_count');
         });
         $message->load('attachments');
 
         return response()->json(['message' => 'Sent.', 'data' => $this->messagePayload($message, $request->user())], 201);
+    }
+
+    /**
+     * Edit own message. Same ownership rules as the staff endpoints
+     * (Message::canBeEditedBy): riders may only edit their own
+     * non-deleted messages inside an authorized thread.
+     */
+    public function update(Request $request, Conversation $conversation, Message $message): JsonResponse
+    {
+        $this->authorizeConversation($request, $conversation);
+        abort_unless((int) $message->conversation_id === (int) $conversation->id, 404);
+        abort_unless($message->canBeEditedBy($request->user()), 403, 'You can only edit your own messages.');
+
+        $validated = $request->validate([
+            'body' => 'required|string|max:2000',
+        ]);
+
+        $message->update([
+            'body' => $validated['body'],
+            'edited_at' => now(),
+        ]);
+        $conversation->update([
+            'last_message_preview' => str($validated['body'])->limit(80),
+        ]);
+
+        return response()->json(['ok' => true]);
+    }
+
+    /**
+     * Soft-delete own message (placeholder preserved, layout intact).
+     * Same authorization as update.
+     */
+    public function destroy(Request $request, Conversation $conversation, Message $message): JsonResponse
+    {
+        $this->authorizeConversation($request, $conversation);
+        abort_unless((int) $message->conversation_id === (int) $conversation->id, 404);
+        abort_unless($message->canBeEditedBy($request->user()), 403, 'You can only delete your own messages.');
+
+        $message->update(['deleted_at' => now()]);
+
+        return response()->json(['ok' => true]);
     }
 
     private function messagePayload(Message $m, $user): array

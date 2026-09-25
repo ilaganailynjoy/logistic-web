@@ -75,9 +75,10 @@
             </div>
         </div>
 
-        {{-- Delivery Progress --}}
+        {{-- Delivery Progress (delivery status: rider-to-customer lifecycle) --}}
         <div class="mt-8 pt-6 border-t border-gray-100">
-            <p class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-5">Delivery Progress</p>
+            <p class="text-xs font-semibold text-gray-400 uppercase tracking-wide">Delivery Progress</p>
+            <p class="mt-1 mb-5 text-xs text-gray-400">Delivery status — the rider-to-customer lifecycle. Parcel pipeline stages live under Parcel Processing below.</p>
             <div class="relative">
                 @if(!$isTerminalBad)
                     <div class="absolute top-5 left-0 right-0 h-1 bg-gray-200 rounded-full"></div>
@@ -190,6 +191,46 @@
             @endif
         </div>
 
+        <div class="bg-gray-50 rounded-xl p-5">
+            <div class="flex items-center gap-2 mb-4">
+                <div class="h-2 w-1 rounded-full bg-teal"></div>
+                <h3 class="text-sm font-semibold text-gray-700 uppercase tracking-wide">Pickup Request</h3>
+            </div>
+            @if($delivery->pickupRequest)
+                <dl class="space-y-3">
+                    <div><dt class="text-xs text-gray-500">Status</dt><dd class="text-sm font-medium text-gray-900">{{ ucwords(str_replace('_', ' ', $delivery->pickupRequest->status)) }}</dd></div>
+                    <div><dt class="text-xs text-gray-500">Requested At</dt><dd class="text-sm font-medium text-gray-900">{{ $delivery->pickupRequest->requested_at?->format('M d, Y h:i A') ?? '—' }}</dd></div>
+                    @if($delivery->pickupRequest->reviewed_at)
+                        <div><dt class="text-xs text-gray-500">Reviewed At</dt><dd class="text-sm font-medium text-gray-900">{{ $delivery->pickupRequest->reviewed_at->format('M d, Y h:i A') }}{{ $delivery->pickupRequest->reviewer ? ' by ' . $delivery->pickupRequest->reviewer->name : '' }}</dd></div>
+                    @endif
+                    @if($delivery->pickupRequest->status === 'rejected' && $delivery->pickupRequest->rejection_reason)
+                        <div><dt class="text-xs text-gray-500">Rejection Reason</dt><dd class="text-sm font-medium text-gray-900">{{ $delivery->pickupRequest->rejection_reason }}</dd></div>
+                    @endif
+                </dl>
+            @else
+                <p class="text-sm text-gray-500">No pickup request for this delivery.</p>
+            @endif
+        </div>
+
+        <div class="bg-gray-50 rounded-xl p-5">
+            <div class="flex items-center gap-2 mb-4">
+                <div class="h-2 w-1 rounded-full bg-teal"></div>
+                <h3 class="text-sm font-semibold text-gray-700 uppercase tracking-wide">Payment &amp; Transaction</h3>
+            </div>
+            <dl class="space-y-3">
+                <div><dt class="text-xs text-gray-500">Payment Method</dt><dd class="text-sm font-medium text-gray-900">{{ $delivery->payment_method ? strtoupper($delivery->payment_method) : '—' }}</dd></div>
+                <div><dt class="text-xs text-gray-500">Cash on Delivery</dt><dd class="text-sm font-medium text-gray-900">{{ $delivery->amount_to_collect !== null && (float) $delivery->amount_to_collect > 0 ? '₱' . number_format((float) $delivery->amount_to_collect, 2) : '—' }}</dd></div>
+                @if($delivery->transaction)
+                    <div><dt class="text-xs text-gray-500">Transaction Amount</dt><dd class="text-sm font-medium text-gray-900">₱{{ number_format((float) $delivery->transaction->amount, 2) }}</dd></div>
+                    <div><dt class="text-xs text-gray-500">Rider Fee</dt><dd class="text-sm font-medium text-gray-900">₱{{ number_format((float) $delivery->transaction->rider_fee, 2) }}</dd></div>
+                    <div><dt class="text-xs text-gray-500">Admin Commission</dt><dd class="text-sm font-medium text-gray-900">₱{{ number_format((float) $delivery->transaction->admin_commission, 2) }}</dd></div>
+                    <div><dt class="text-xs text-gray-500">Transaction Status</dt><dd class="text-sm font-medium text-gray-900">{{ ucfirst($delivery->transaction->status) }}</dd></div>
+                @else
+                    <div><dt class="text-xs text-gray-500">Transaction</dt><dd class="text-sm text-gray-500">No transaction recorded yet.</dd></div>
+                @endif
+            </dl>
+        </div>
+
         <div class="bg-gray-50 rounded-xl p-5 md:col-span-2">
             <div class="flex items-center gap-2 mb-4">
                 <div class="h-2 w-1 rounded-full bg-teal"></div>
@@ -205,15 +246,16 @@
         </div>
     </div>
 
-    {{-- Parcel Processing (Receive -> Scan -> Sort -> Dispatch) --}}
+    {{-- Parcel Processing (parcel status: sorting-center pipeline, independent of delivery status) --}}
     <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-6">
-        <div class="flex items-center gap-2 mb-5">
+        <div class="flex items-center gap-2">
             <div class="h-2 w-1 rounded-full bg-teal"></div>
             <h2 class="text-lg font-semibold text-gray-900">Parcel Processing</h2>
             <span class="inline-flex items-center px-2.5 py-0.5 text-xs font-semibold rounded-full bg-teal-light text-teal-dark">
                 {{ ucwords(str_replace('_', ' ', $delivery->parcel_status ?? 'pending_arrival')) }}
             </span>
         </div>
+        <p class="mt-1 mb-5 text-xs text-gray-400">Parcel status — where the physical parcel is inside the sorting-center pipeline. Independent from the delivery status above.</p>
 
         @php
             $parcelSteps = [
@@ -374,26 +416,18 @@
                      class="w-full bg-[#ffffff] text-[#111111]" style="max-width: 4in;">
                     <div class="border-2 border-[#111111]">
                         {{-- Header --}}
-                        <div class="px-3 pt-2.5 pb-2 border-b-2 border-[#111111] flex items-center justify-between gap-2">
-                            <div class="flex items-center gap-2 min-w-0">
-                                <img src="{{ asset('images/logo.png') }}" alt="INVOIZ logo" class="h-9 w-9 rounded-md object-cover flex-shrink-0">
-                                <div>
-                                    <p class="text-base font-extrabold tracking-tight leading-none text-[#0E4A57]">INVOIZ LOGISTICS</p>
-                                    <p class="text-[10px] font-bold tracking-widest leading-none mt-1">SHIPPING WAYBILL</p>
-                                </div>
-                            </div>
-                            @if($wbOrder)
-                                <div class="text-right shrink-0">
-                                    <p class="text-[11px] font-extrabold tracking-wide">ORDER #: {{ $wbOrder->id }}</p>
-                                    <p class="text-[10px] mt-0.5">{{ $wbOrder->created_at?->format('F d, Y') ?? '—' }}</p>
-                                </div>
-                            @endif
+                        <div class="px-3 pt-2.5 pb-2 border-b-2 border-[#111111] flex items-center gap-2.5">
+                            <img src="{{ asset('images/logo-nobg.png') }}" alt="INVOIZ logo" class="h-12 w-auto flex-shrink-0">
+                            <p class="text-lg font-extrabold tracking-tight leading-none whitespace-nowrap text-[#0E4A57]">SHIPPING WAYBILL</p>
                         </div>
 
                         {{-- Waybill / tracking number --}}
                         <div class="px-3 py-2 border-b-2 border-[#111111] text-center">
                             <p class="text-[10px] font-bold tracking-widest">WAYBILL / TRACKING</p>
                             <p class="font-mono font-extrabold text-xl leading-tight break-all">{{ $delivery->tracking_number }}</p>
+                            @if($wbOrder)
+                                <p class="text-[10px] font-bold tracking-wide mt-1">ORDER #: {{ $wbOrder->id }} · {{ $wbOrder->created_at?->format('F d, Y') ?? '—' }}</p>
+                            @endif
                         </div>
 
                         {{-- Barcode (CODE128 of the tracking number, rendered by script below) --}}
@@ -606,13 +640,13 @@
                 @if($delivery->sorting_center_handoff_at || $delivery->sorting_center_pickup_at || (in_array($delivery->parcel_status, ['received', 'scanned', 'sorted', 'dispatched']) && $delivery->logisticsCenter))
                     <div class="w-full flex flex-wrap items-center gap-x-6 gap-y-1 text-xs text-gray-500 bg-gray-50 rounded-xl px-4 py-3">
                         @if($delivery->logisticsCenter)<span><strong class="text-gray-700">Handling Center:</strong> {{ $delivery->logisticsCenter->name }}</span>@endif
-                        @if($delivery->sorting_center_handoff_at)<span><strong class="text-gray-700">Handed to Center:</strong> {{ $delivery->sorting_center_handoff_at->format('M d, Y h:i A') }}</span>@endif
+                        @if($delivery->sorting_center_handoff_at)<span><strong class="text-gray-700">Handed to Center:</strong> {{ $delivery->sorting_center_handoff_at->format('M d, Y h:i A') }}@if($delivery->sortingCenterHandoffRider) by {{ $delivery->sortingCenterHandoffRider->name }}@endif</span>@endif
                         @if($delivery->received_at)<span><strong class="text-gray-700">Received:</strong> {{ $delivery->received_at->format('M d, Y h:i A') }}</span>@endif
                         @if($delivery->scanned_at)<span><strong class="text-gray-700">Scanned:</strong> {{ $delivery->scanned_at->format('M d, Y h:i A') }}</span>@endif
                         @if($delivery->destinationCenter)<span><strong class="text-gray-700">Destination:</strong> {{ $delivery->destinationCenter->name }}</span>@endif
                         @if($delivery->serviceArea)<span><strong class="text-gray-700">Service Area:</strong> {{ $delivery->serviceArea->name }}</span>@endif
                         @if($delivery->sorted_at)<span><strong class="text-gray-700">Sorted:</strong> {{ $delivery->sorted_at->format('M d, Y h:i A') }}</span>@endif
-                        @if($delivery->sorting_center_pickup_at)<span><strong class="text-gray-700">Picked from Center:</strong> {{ $delivery->sorting_center_pickup_at->format('M d, Y h:i A') }}</span>@endif
+                        @if($delivery->sorting_center_pickup_at)<span><strong class="text-gray-700">Picked from Center:</strong> {{ $delivery->sorting_center_pickup_at->format('M d, Y h:i A') }}@if($delivery->sortingCenterPickupRider) by {{ $delivery->sortingCenterPickupRider->name }}@endif</span>@endif
                         @if($delivery->dispatched_at)<span><strong class="text-gray-700">Dispatched:</strong> {{ $delivery->dispatched_at->format('M d, Y h:i A') }}</span>@endif
                     </div>
                 @endif
@@ -669,6 +703,15 @@
             <div class="relative">
                 <div class="absolute left-2 top-1 bottom-1 w-0.5 bg-gray-200"></div>
                 <div class="space-y-4">
+                    @php
+                        // History event kinds: parcel-pipeline and record events are
+                        // past facts, not the current delivery status. They get a
+                        // small kind tag so the timeline never reads as a second
+                        // status indicator. Delivery-lifecycle entries get no tag.
+                        $parcelEventStatuses = ['pending_arrival', 'received', 'scanned', 'sorted', 'dispatched'];
+                        $centerEventStatuses = ['sorting_center_handoff', 'sorting_center_pickup'];
+                        $recordEventStatuses = ['archived', 'restored'];
+                    @endphp
                     @foreach($delivery->statusLogs->sortBy('created_at') as $log)
                         <div class="relative pl-10">
                             <div class="absolute left-1.5 top-1.5 h-3 w-3 rounded-full border-2 border-white {{ $dotColors[$log->status] ?? 'bg-gray-400' }} shadow"></div>
@@ -677,6 +720,9 @@
                                     <span class="text-sm font-semibold text-gray-900">
                                         {{ \Illuminate\Support\Str::title(str_replace('_', ' ', $log->status)) }}
                                         @if(in_array($log->status, ['delivery_failed', 'cancelled']))<span class="ml-1 text-xs font-normal text-red-500">(final)</span>@endif
+                                        @if(in_array($log->status, $parcelEventStatuses, true))<span class="ml-1.5 inline-flex items-center px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide rounded bg-teal-light text-teal-dark">Parcel</span>@endif
+                                        @if(in_array($log->status, $centerEventStatuses, true))<span class="ml-1.5 inline-flex items-center px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide rounded bg-amber-100 text-amber-700">Sorting Center</span>@endif
+                                        @if(in_array($log->status, $recordEventStatuses, true))<span class="ml-1.5 inline-flex items-center px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide rounded bg-gray-200 text-gray-500">Record</span>@endif
                                     </span>
                                     <span class="text-xs text-gray-500">{{ $log->created_at->format('M d, Y · h:i A') }}</span>
                                 </div>
@@ -764,6 +810,54 @@
                             class="inline-flex items-center gap-2 self-start bg-white border border-gray-200 hover:border-red-300 hover:text-red-600 text-gray-600 font-semibold px-4 py-2.5 rounded-xl transition text-sm">
                         Cancel Delivery
                     </button>
+                @endif
+
+                @if(in_array($delivery->status, ['assigned', 'delivery_failed'], true))
+                    @php $reassignLabel = $delivery->status === 'delivery_failed' ? 'Retry — Assign Rider' : 'Reassign Rider'; @endphp
+                    <form action="{{ route('deliveries.assign-rider', $delivery) }}" method="POST" class="w-full max-w-xl">
+                        @csrf
+                        <label for="reassign_rider_id" class="block text-sm font-medium text-gray-700 mb-1">{{ $reassignLabel }}</label>
+                        @if($delivery->rider)
+                            <p class="text-xs text-gray-500 mb-1">Currently assigned: <span class="font-semibold text-gray-700">{{ $delivery->rider->name }}</span>. Moving it appends a new assignment entry — history is preserved.</p>
+                        @endif
+                        <div class="flex flex-col sm:flex-row gap-2">
+                            <select name="rider_id" id="reassign_rider_id" required
+                                    class="flex-1 min-w-0 rounded-xl border-gray-300 focus:border-teal focus:ring-teal text-sm">
+                                <option value="">— Select a rider —</option>
+                                @if($riderEligibility->where('eligible', true)->isNotEmpty())
+                                    <optgroup label="✓ Available — Online">
+                                        @foreach($riderEligibility->where('eligible', true) as $item)
+                                            <option value="{{ $item['rider']->id }}">
+                                                ✓ Online — {{ $item['rider']->name }} — {{ ucfirst($item['rider']->vehicle_type) }} — up to {{ $item['capacity'] }} kg
+                                            </option>
+                                        @endforeach
+                                    </optgroup>
+                                @endif
+                                @if($riderEligibility->where('eligible', false)->isNotEmpty())
+                                    <optgroup label="✕ Unavailable">
+                                        @foreach($riderEligibility->where('eligible', false) as $item)
+                                            <option value="" disabled>
+                                                @if(!$item['is_online'])
+                                                    ○ Offline — {{ $item['rider']->name }} — {{ ucfirst($item['rider']->vehicle_type) }} — {{ $item['reason'] }}
+                                                @else
+                                                    ✕ {{ $item['rider']->name }} — {{ ucfirst($item['rider']->vehicle_type) }} — {{ $item['reason'] }}
+                                                @endif
+                                            </option>
+                                        @endforeach
+                                    </optgroup>
+                                @endif
+                            </select>
+                            <button type="submit" class="bg-teal hover:bg-teal-dark text-white font-semibold py-2 px-5 rounded-xl transition shadow-sm text-sm whitespace-nowrap">
+                                {{ $delivery->status === 'delivery_failed' ? 'Assign & Retry' : 'Reassign' }}
+                            </button>
+                        </div>
+                        @if($riderEligibility->where('eligible', true)->isEmpty())
+                            <p class="mt-2 text-xs text-amber-600">No eligible riders right now. Riders must be approved, active, online, have a verified vehicle, no active delivery, sufficient capacity, and belong to the delivery's destination center and service area.</p>
+                        @endif
+                        @if($errors->has('rider_id'))
+                            <p class="text-red-500 text-xs mt-1">{{ $errors->first('rider_id') }}</p>
+                        @endif
+                    </form>
                 @endif
 
                 @if($delivery->status === 'assigned')

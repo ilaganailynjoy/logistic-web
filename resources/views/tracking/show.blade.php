@@ -270,6 +270,13 @@
                     <div class="relative">
                         <div class="absolute left-4 top-0 bottom-0 w-0.5 bg-gray-200"></div>
                         <div class="space-y-6">
+                            @php
+                                // Past parcel-pipeline / center / record events get a
+                                // kind tag so history never reads as current status.
+                                $parcelEventStatuses = ['pending_arrival', 'received', 'scanned', 'sorted', 'dispatched'];
+                                $centerEventStatuses = ['sorting_center_handoff', 'sorting_center_pickup'];
+                                $recordEventStatuses = ['archived', 'restored'];
+                            @endphp
                             @foreach ($delivery->statusLogs->sortByDesc('created_at') as $log)
                                 @php
                                     $dotColors = [
@@ -285,6 +292,9 @@
                                     <div class="absolute left-2.5 top-1.5 w-3 h-3 rounded-full {{ $dotColor }}"></div>
                                 <div class="flex flex-wrap items-center gap-2">
                                     <x-status-badge :status="$log->status" />
+                                    @if(in_array($log->status, $parcelEventStatuses, true))<span class="inline-flex items-center px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide rounded bg-teal-light text-teal-dark">Parcel</span>@endif
+                                    @if(in_array($log->status, $centerEventStatuses, true))<span class="inline-flex items-center px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide rounded bg-amber-100 text-amber-700">Sorting Center</span>@endif
+                                    @if(in_array($log->status, $recordEventStatuses, true))<span class="inline-flex items-center px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide rounded bg-gray-200 text-gray-500">Record</span>@endif
                                     <span class="text-xs text-gray-400">{{ $log->created_at->format('M d, Y \a\t g:i A') }}</span>
                                 </div>
                                 @if ($log->notes)

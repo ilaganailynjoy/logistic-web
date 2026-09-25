@@ -6,7 +6,9 @@ use App\Models\Barangay;
 use App\Models\LogisticsCenterApplication;
 use App\Models\Municipality;
 use App\Models\Province;
+use App\Models\RiderEmailVerification;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
@@ -51,6 +53,22 @@ class CenterApplicationWebTest extends TestCase
                 'business_registration' => $this->jpg('web-dti.jpg'),
             ],
         ];
+    }
+
+    /**
+     * Satisfy the email OTP submission gate for the given address, mirroring
+     * a completed in-form verification (consumed server-side record).
+     */
+    private function verifyEmail(string $email): void
+    {
+        RiderEmailVerification::create([
+            'email' => strtolower($email),
+            'otp_hash' => Hash::make('123456'),
+            'expires_at' => now()->addMinutes(5),
+            'attempts' => 0,
+            'last_sent_at' => now()->subMinutes(2),
+            'consumed_at' => now(),
+        ]);
     }
 
     // ── Application page ────────────────────────────────────────────
@@ -103,6 +121,7 @@ class CenterApplicationWebTest extends TestCase
         foreach ($accepted as $phone) {
             $data = $this->submitData();
             $data['phone'] = $phone;
+            $this->verifyEmail($data['email']);
 
             $this->post('/logistics-center/apply', $data)
                 ->assertSessionHasNoErrors(['phone'])
@@ -136,6 +155,7 @@ class CenterApplicationWebTest extends TestCase
         foreach ($rejected as $phone) {
             $data = $this->submitData();
             $data['phone'] = $phone;
+            $this->verifyEmail($data['email']);
 
             $this->post('/logistics-center/apply', $data)
                 ->assertSessionHasErrors('phone');
@@ -148,6 +168,7 @@ class CenterApplicationWebTest extends TestCase
     {
         Storage::fake('local');
         $data = $this->submitData();
+        $this->verifyEmail($data['email']);
 
         $this->post('/logistics-center/apply', $data)
             ->assertRedirect(route('center-application.apply'))
@@ -173,6 +194,7 @@ class CenterApplicationWebTest extends TestCase
     {
         Storage::fake('local');
         $data = $this->submitData();
+        $this->verifyEmail($data['email']);
         $this->post('/logistics-center/apply', $data)->assertSessionHasNoErrors();
 
         $duplicateEmail = $this->submitData();
@@ -184,6 +206,7 @@ class CenterApplicationWebTest extends TestCase
 
         $duplicatePhone = $this->submitData();
         $duplicatePhone['phone'] = $data['phone'];
+        $this->verifyEmail($duplicatePhone['email']);
         $this->from(route('center-application.apply'))
             ->post('/logistics-center/apply', $duplicatePhone)
             ->assertSessionHasErrors('phone')
@@ -196,12 +219,14 @@ class CenterApplicationWebTest extends TestCase
 
         $first = $this->submitData();
         $first['phone'] = '09171234567';
+        $this->verifyEmail($first['email']);
         $this->post('/logistics-center/apply', $first)
             ->assertSessionHasNoErrors();
 
         foreach (['+639171234567', '+63 917 123 4567', '0917-123-4567'] as $duplicate) {
             $data = $this->submitData();
             $data['phone'] = $duplicate;
+            $this->verifyEmail($data['email']);
 
             $this->from(route('center-application.apply'))
                 ->post('/logistics-center/apply', $data)
@@ -218,11 +243,13 @@ class CenterApplicationWebTest extends TestCase
 
         $first = $this->submitData();
         $first['phone'] = '09171234567';
+        $this->verifyEmail($first['email']);
         $this->post('/logistics-center/apply', $first)
             ->assertSessionHasNoErrors();
 
         $different = $this->submitData();
         $different['phone'] = '09181234567';
+        $this->verifyEmail($different['email']);
         $this->post('/logistics-center/apply', $different)
             ->assertSessionHasNoErrors()
             ->assertSessionHas('success');
@@ -402,6 +429,7 @@ class CenterApplicationWebTest extends TestCase
         // should route to step 3 (zero-based index 2)
         $data = $this->submitData();
         unset($data['documents']);
+        $this->verifyEmail($data['email']);
 
         $this->from(route('center-application.apply'))
             ->post('/logistics-center/apply', $data);
@@ -483,6 +511,7 @@ class CenterApplicationWebTest extends TestCase
         $data = $this->submitData();
         $data['phone'] = 'not-a-phone';
         $email = $data['email'];
+        $this->verifyEmail($email);
 
         // First attempt fails validation on the phone (step 1) only — documents
         // are valid, so step 3 must NOT be recorded.

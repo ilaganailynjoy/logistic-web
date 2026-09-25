@@ -18,6 +18,7 @@ use App\Http\Controllers\ReportController;
 use App\Http\Controllers\RiderApplicationAdminController;
 use App\Http\Controllers\CenterApplicationAdminController;
 use App\Http\Controllers\CenterApplicationPublicController;
+use App\Http\Controllers\CenterEmailVerificationController;
 use App\Http\Controllers\PickupRequestController;
 use Illuminate\Support\Facades\Route;
 
@@ -35,6 +36,14 @@ Route::get('logistics-center/application-status', [CenterApplicationPublicContro
     ->name('center-application.status');
 Route::post('logistics-center/application-status', [CenterApplicationPublicController::class, 'check'])
     ->name('center-application.status.check');
+// Email OTP gate for the public center-application form (mirrors the rider
+// apply flow). JSON endpoints consumed by the wizard via fetch.
+Route::post('logistics-center/verification/send', [CenterEmailVerificationController::class, 'send'])
+    ->middleware('throttle:5,1')
+    ->name('center-application.verification.send');
+Route::post('logistics-center/verification/verify', [CenterEmailVerificationController::class, 'verify'])
+    ->middleware('throttle:10,1')
+    ->name('center-application.verification.verify');
 
 Route::get('/dashboard', [DashboardController::class, 'index'])
     ->middleware(['auth', 'verified', 'staff'])
@@ -65,6 +74,7 @@ Route::middleware(['auth', 'verified', 'staff'])->group(function () {
     // ── Riders (Directory + Management) ─────────────────────────
     Route::get('riders', [RiderController::class, 'index'])->name('riders.index');
     Route::get('riders/{rider}', [RiderController::class, 'show'])->name('riders.show');
+    Route::post('riders/{rider}/reset-credentials', [RiderController::class, 'resetCredentials'])->name('riders.reset-credentials');
     Route::post('riders/{rider}/activate', [RiderController::class, 'activate'])->name('riders.activate');
     Route::post('riders/{rider}/deactivate', [RiderController::class, 'deactivate'])->name('riders.deactivate');
 

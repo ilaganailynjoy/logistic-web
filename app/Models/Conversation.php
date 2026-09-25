@@ -39,9 +39,18 @@ class Conversation extends Model
         return $this->hasMany(Message::class)->orderBy('created_at', 'asc');
     }
 
+    /**
+     * The delivery behind an order-linked thread.
+     *
+     * NOTE: conversations store the shared ORDER id (order_id), while the
+     * delivery row references it via its own order_id column — so the owner
+     * key here is deliveries.order_id, not deliveries.id. Joining on the
+     * wrong key silently drops every tracking reference and breaks
+     * tracking-number search.
+     */
     public function delivery(): BelongsTo
     {
-        return $this->belongsTo(Delivery::class, 'order_id');
+        return $this->belongsTo(Delivery::class, 'order_id', 'order_id');
     }
 
     public function latestMessage(): HasOne

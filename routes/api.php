@@ -72,8 +72,10 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/messages/poll', [RiderMessageController::class, 'poll']);
         Route::post('/messages', [RiderMessageController::class, 'store']);
 
-        Route::get('/conversations', [RiderConversationController::class, 'index']);
-        Route::get('/conversations/{conversation}', [RiderConversationController::class, 'show']);
-        Route::post('/conversations/{conversation}/messages', [RiderConversationController::class, 'store']);
+Route::get('/conversations', [RiderConversationController::class, 'index']);
+Route::get('/conversations/{conversation}', [RiderConversationController::class, 'show']);
+Route::post('/conversations/{conversation}/messages', [RiderConversationController::class, 'store']);
+Route::patch('/conversations/{conversation}/messages/{message}', [RiderConversationController::class, 'update']);
+Route::delete('/conversations/{conversation}/messages/{message}', [RiderConversationController::class, 'destroy']);
     });
 });

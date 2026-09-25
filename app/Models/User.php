@@ -55,6 +55,16 @@ class User extends Authenticatable
         return $this->hasOne(Rider::class);
     }
 
+    /**
+     * Store profile for seller-role users. Referenced by the rider
+     * conversation discovery (store name on seller threads); absent rows
+     * simply fall back to the user's personal name.
+     */
+    public function seller(): HasOne
+    {
+        return $this->hasOne(Seller::class, 'user_id');
+    }
+
     public function logisticsCenter()
     {
         return $this->belongsTo(LogisticsCenter::class, 'center_id');

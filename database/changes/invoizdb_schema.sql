@@ -346,6 +346,7 @@ CREATE TABLE `logistics_centers` (
 CREATE TABLE `logistics_conversations` (
   `id` bigint unsigned NOT NULL AUTO_INCREMENT,
   `order_id` bigint unsigned DEFAULT NULL,
+  `rider_id` bigint unsigned DEFAULT NULL,
   `participant_type` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
   `participant_id` bigint unsigned NOT NULL,
   `participant_name` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL,
@@ -357,6 +358,7 @@ CREATE TABLE `logistics_conversations` (
   `updated_at` timestamp NULL DEFAULT NULL,
   PRIMARY KEY (`id`),
   KEY `logistics_conversations_participant_type_participant_id_index` (`participant_type`,`participant_id`),
+  KEY `logistics_conversations_rider_id_index` (`rider_id`),
   KEY `logistics_conversations_last_message_at_index` (`last_message_at`)
 ) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;

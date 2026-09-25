@@ -6,6 +6,8 @@ use App\Models\Conversation;
 use App\Models\Message;
 use App\Models\MessageAttachment;
 use App\Models\Notification;
+use App\Models\Rider;
+use App\Models\RiderNotification;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -27,10 +29,15 @@ class MessageController extends Controller
 
         $query = Conversation::query()->orderBy('last_message_at', 'desc');
 
+        // Unread is an inbox state, not a participant type.
+        if ($filter === 'unread') {
+            $query->where('unread_count', '>', 0);
+        }
+
         // Dynamic participant-type filter — built from the roles that actually
         // exist in conversations (riders today; new roles appear automatically).
         $available = $this->availableParticipantTypes();
-        if ($filter !== 'all' && in_array($filter, $available, true)) {
+        if ($filter !== 'all' && $filter !== 'unread' && in_array($filter, $available, true)) {
             $query->where('participant_type', $filter);
         }
 
@@ -206,7 +213,7 @@ class MessageController extends Controller
         ]);
     }
 
-    public function store(Request $request): RedirectResponse
+    public function store(Request $request): RedirectResponse|JsonResponse
     {
         $validated = $request->validate([
             'conversation_id' => 'required|integer|exists:logistics_conversations,id',
@@ -256,6 +263,24 @@ class MessageController extends Controller
                 'priority' => 'normal',
                 'link' => route('messages.index', ['conversation' => $conversation->id]),
             ]);
+
+            // The rider side has no other signal: notify the participating
+            // rider (if resolvable) through the existing rider_notifications
+            // table. notifyOnce dedupes retried sends; rider-role sends never
+            // reach this controller, so the actor is never notified.
+            $riderId = $conversation->participant_type === 'rider'
+                ? Rider::where('user_id', $conversation->participant_id)->value('id')
+                : $conversation->rider_id;
+
+            if ($riderId) {
+                RiderNotification::notifyOnce(
+                    (int) $riderId,
+                    'new_message',
+                    ['conversation_id' => $conversation->id],
+                    'New Message',
+                    str($validated['body'])->limit(120)->toString(),
+                );
+            }
         });
 
         if ($request->ajax() || $request->wantsJson()) {

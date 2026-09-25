@@ -15,6 +15,12 @@
             <div class="flex flex-wrap items-center gap-3">
                 <x-status-badge :status="$rider->status" />
                 @if(Auth::user()->isAdmin() || Auth::user()->center_id == $rider->center_id)
+                    <form action="{{ route('riders.reset-credentials', $rider) }}" method="POST" x-data x-on:submit.prevent="if (confirm('Generate a NEW login credential for {{ $rider->name }}? The previous password will stop working immediately.')) $el.submit()">
+                        @csrf
+                        <button type="submit" class="bg-teal hover:bg-teal-dark text-white px-4 py-2 rounded-xl text-sm font-semibold transition shadow-sm whitespace-nowrap">
+                            Generate New Credential
+                        </button>
+                    </form>
                     @if($rider->status === 'inactive')
                         <form action="{{ route('riders.activate', $rider) }}" method="POST">
                             @csrf
