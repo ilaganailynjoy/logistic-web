@@ -131,12 +131,31 @@ class NotificationsPageTest extends TestCase
             ->assertRedirect(route('login'));
     }
 
-    public function test_sidebar_links_to_page(): void
+    public function test_topbar_links_to_page_without_duplicate_sidebar_item(): void
     {
         $staff = $this->staff();
-
-        $this->actingAs($staff)->get(route('dashboard'))
+        $html = (string) $this->actingAs($staff)
+            ->get(route('dashboard'))
             ->assertOk()
-            ->assertSee(route('notifications.index'), false);
+            ->getContent();
+
+        $headerStart = strpos($html, '<header class="sticky top-0');
+        $headerEnd = strpos($html, '</header>', $headerStart);
+        $sidebarStart = strpos($html, '<aside id="app-sidebar"');
+        $sidebarEnd = strpos($html, '</aside>', $sidebarStart);
+
+        $this->assertNotFalse($headerStart);
+        $this->assertNotFalse($headerEnd);
+        $this->assertNotFalse($sidebarStart);
+        $this->assertNotFalse($sidebarEnd);
+
+        $header = substr($html, $headerStart, $headerEnd - $headerStart);
+        $sidebar = substr($html, $sidebarStart, $sidebarEnd - $sidebarStart);
+
+        $this->assertStringContainsString('notifOpen', $header);
+        $this->assertStringContainsString(route('notifications.index'), $header);
+        $this->assertStringContainsString('View all notifications', $header);
+        $this->assertStringNotContainsString('aria-label="Notifications"', $sidebar);
+        $this->assertStringNotContainsString(route('notifications.index'), $sidebar);
     }
 }

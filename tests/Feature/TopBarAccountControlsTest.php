@@ -193,6 +193,10 @@ class TopBarAccountControlsTest extends TestCase
         $this->assertStringContainsString('@click="deliveriesOpen = !deliveriesOpen"', $sidebar);
         $this->assertStringContainsString('@click="applicationsOpen = !applicationsOpen"', $sidebar);
         $this->assertStringContainsString('role="tooltip"', $sidebar);
+
+        // Notifications live in the topbar bell/dropdown only.
+        $this->assertStringNotContainsString('aria-label="Notifications"', $sidebar);
+        $this->assertStringNotContainsString(route('notifications.index'), $sidebar);
     }
 
     public function test_profile_and_settings_pages_still_resolve(): void

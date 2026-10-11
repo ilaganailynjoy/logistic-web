@@ -29,7 +29,6 @@
     $activeCenters   = request()->routeIs('centers.*');
     $activeAreas     = request()->routeIs('service-areas.*');
     $activeTransactions = request()->routeIs('transactions.*');
-    $activeNotifications = request()->routeIs('notifications.*');
     $activeReports   = request()->routeIs('reports.*');
     $activeArchived  = request()->routeIs('deliveries.archived');
     $activeSettings  = request()->routeIs('settings.*');
@@ -217,20 +216,6 @@
             <span x-show="sidebarHover" x-cloak class="text-sm font-medium whitespace-nowrap block {{ $activeDashboard ? 'text-teal-dark' : 'text-[#1F2933]' }}">Dashboard</span>
             <span class="pointer-events-none absolute left-full ml-3 top-1/2 -translate-y-1/2 px-2.5 py-1 bg-white text-[#1F2933] text-xs font-medium rounded-lg border border-teal/20 shadow-lg whitespace-nowrap z-50 opacity-0 group-hover:opacity-100 transition-opacity"
                   x-show="!sidebarHover" role="tooltip" aria-hidden="true">Dashboard</span>
-        </a>
-
-        {{-- Notifications --}}
-        <a href="{{ route('notifications.index') }}"
-           aria-label="Notifications"
-           @if($activeNotifications) aria-current="page" @endif
-           class="relative group flex items-center h-10 w-full rounded-xl transition-colors gap-3 {{ $activeNotifications ? 'bg-teal-light text-teal-dark' : 'hover:bg-teal-light hover:text-teal-dark' }}"
-           :class="sidebarHover ? 'px-3 justify-start' : 'justify-center'">
-            <svg class="h-5 w-5 flex-shrink-0 {{ $activeNotifications ? 'text-teal-dark' : 'text-teal' }} transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-            </svg>
-            <span x-show="sidebarHover" x-cloak class="text-sm font-medium whitespace-nowrap block {{ $activeNotifications ? 'text-teal-dark' : 'text-[#1F2933]' }}">Notifications</span>
-            <span class="pointer-events-none absolute left-full ml-3 top-1/2 -translate-y-1/2 px-2.5 py-1 bg-white text-[#1F2933] text-xs font-medium rounded-lg border border-teal/20 shadow-lg whitespace-nowrap z-50 opacity-0 group-hover:opacity-100 transition-opacity"
-                  x-show="!sidebarHover" role="tooltip" aria-hidden="true">Notifications</span>
         </a>
 
         @if(!$isRider)

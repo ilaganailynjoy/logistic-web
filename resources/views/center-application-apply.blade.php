@@ -594,7 +594,7 @@
                      moves. Completed steps show a teal check; the current
                      step keeps its number, scale, and shadow so it stays
                      the single most prominent item. --}}
-                <ol class="relative mt-5 grid grid-cols-4 items-start" aria-label="Application steps">
+                <div class="relative mt-5">
                     <div aria-hidden="true" class="pointer-events-none absolute inset-x-[12.5%] top-[22px] h-0.5 sm:top-[28px]">
                         <div class="flex h-full">
                             <div class="h-full flex-1 transition-colors duration-300"
@@ -605,6 +605,7 @@
                                  :class="isError(3) ? 'bg-red-300' : ((3 <= step) ? 'bg-teal' : 'bg-gray-200')"></div>
                         </div>
                     </div>
+                <ol class="relative grid grid-cols-4 items-start" aria-label="Application steps">
                     <template x-for="(title, i) in stepTitles" :key="i">
                         <li class="min-w-0">
                             <button type="button"
@@ -637,6 +638,7 @@
                         </li>
                     </template>
                 </ol>
+                </div>
 
                 {{-- ============ STEP 1 — CENTER & OWNER ============ --}}
                 <section x-cloak x-show="step === 0" aria-labelledby="wizard-step-1" class="mt-8">
@@ -675,11 +677,10 @@
                             <p x-cloak x-show="clientErrors['email']" class="mt-1.5 text-sm text-red-600" x-text="clientErrors['email']"></p>
                             @error('email')<p id="email_error" class="mt-1.5 text-sm text-red-600">{{ $message }}</p>@enderror
                             {{-- Email OTP verification (mirrors rider apply).
-                                 Compact panel docked to the email field: it
-                                 shares the field column instead of spanning
-                                 the form, so the two-column rhythm stays
-                                 balanced. --}}
-                            <div x-cloak x-show="!emailVerifiedNow()" class="mt-4 rounded-xl border border-teal/25 bg-teal-light/60 p-4">
+                                 The panel stays compact but can extend across
+                                 the email/contact row on wider screens so it
+                                 reads as the next form action. --}}
+                            <div x-cloak x-show="!emailVerifiedNow()" class="mt-4 max-w-xl rounded-xl border border-teal/25 bg-teal-light/60 p-4 sm:w-[calc(200%+1.25rem)]">
                                 <div class="flex items-center gap-2">
                                     <svg class="h-4 w-4 flex-none text-teal-dark" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
                                     <p class="text-[13px] font-bold tracking-wide text-teal-dark uppercase">Email verification</p>
@@ -713,7 +714,7 @@
                                 </template>
                                 <p x-cloak x-show="verifyMsg" class="mt-2.5 text-sm font-medium" :class="verifyMsgOk ? 'text-emerald-600' : 'text-red-600'" x-text="verifyMsg"></p>
                             </div>
-                            <div x-cloak x-show="emailVerifiedNow()" class="mt-4 flex items-center gap-2.5 rounded-2xl border border-emerald-200 bg-emerald-50 p-4" role="status">
+                            <div x-cloak x-show="emailVerifiedNow()" class="mt-4 flex max-w-xl items-center gap-2.5 rounded-xl border border-emerald-200 bg-emerald-50 p-4 sm:w-[calc(200%+1.25rem)]" role="status">
                                 <svg class="h-5 w-5 flex-none text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
                                 <p class="text-sm font-semibold text-emerald-700">Email verified<span x-text="verifiedEmail ? ' — ' + verifiedEmail : ''"></span></p>
                             </div>
