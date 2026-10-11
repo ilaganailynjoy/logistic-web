@@ -12,7 +12,7 @@ use Tests\TestCase;
  *
  * These tests deliberately avoid asserting "just 302". Each one verifies the real
  * filesystem state, the logistics_settings.photo_path row, the generated URL, and
- * the rendered Profile/sidebar output where applicable.
+ * the rendered Profile/top-bar output where applicable.
  */
 class ProfilePhotoUploadTest extends TestCase
 {
@@ -196,9 +196,9 @@ class ProfilePhotoUploadTest extends TestCase
         $this->track($path);
     }
 
-    // ── 8. Sidebar display (collapsed + expanded) ─────────────────
+    // ── 8. Top-bar display ─────────────────
 
-    public function test_sidebar_displays_the_new_photo(): void
+    public function test_topbar_displays_the_new_photo(): void
     {
         $user = User::factory()->create(['role' => 'admin']);
 
@@ -216,7 +216,7 @@ class ProfilePhotoUploadTest extends TestCase
         $this->track($path);
     }
 
-    public function test_sidebar_falls_back_to_initial_when_photo_missing_on_disk(): void
+    public function test_topbar_falls_back_to_initial_when_photo_missing_on_disk(): void
     {
         $user = User::factory()->create(['role' => 'admin']);
         LogisticsSetting::forUser($user->id)->update(['photo_path' => 'uploads/avatars/does-not-exist.png']);
@@ -401,7 +401,7 @@ class ProfilePhotoUploadTest extends TestCase
         $this->track($path);
     }
 
-    public function test_photo_is_still_displayed_on_a_fresh_request_containing_the_sidebar(): void
+    public function test_photo_is_still_displayed_on_a_fresh_request_containing_the_topbar(): void
     {
         $user = User::factory()->create(['role' => 'admin']);
 
@@ -436,7 +436,7 @@ class ProfilePhotoUploadTest extends TestCase
         $this->assertStringStartsWith('uploads/avatars/', $path);
         $this->assertTrue(file_exists(public_path($path)));
 
-        // Same photo surfaces in the sidebar.
+        // Same photo surfaces in the top bar.
         $html = (string) $this->actingAs($user)->get(route('dashboard'))->getContent();
         $this->assertStringContainsString(asset($path), $html);
 

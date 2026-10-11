@@ -8,6 +8,7 @@ use App\Http\Controllers\TrackingController;
 use App\Http\Controllers\SettingController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\SortingCenterController;
 use App\Http\Controllers\MessageController;
 use App\Http\Controllers\RiderMessageController;
 use App\Http\Controllers\StaffController;
@@ -22,8 +23,9 @@ use App\Http\Controllers\CenterEmailVerificationController;
 use App\Http\Controllers\PickupRequestController;
 use Illuminate\Support\Facades\Route;
 
-// ── Central entry: guests see the public landing page, authenticated
-// users are routed to their role destination (never a platform chooser).
+// ── Central entry: no public landing page — guests go straight to the
+// Logistics login, authenticated users are routed to their role
+// destination (never a platform chooser).
 Route::get('/', [CentralEntryController::class, 'index'])->name('landing');
 
 // ── Public: Open a Logistics Center / check application status ──
@@ -55,6 +57,7 @@ Route::middleware(['auth', 'verified', 'staff'])->group(function () {
     // Parcel QR scanner (page + verify endpoint). The GET route must be
     // registered before the resource below so "deliveries/scan" is not
     // captured by the "deliveries/{delivery}" show route.
+    Route::get('sorting-center', [SortingCenterController::class, 'index'])->name('sorting-center.index');
     Route::get('deliveries/scan', [DeliveryController::class, 'scanPage'])->name('deliveries.scan-page');
     Route::post('deliveries/scan-verify', [DeliveryController::class, 'scanByTracking'])->name('deliveries.scan-verify');
     Route::resource('deliveries', DeliveryController::class)->except(['destroy']);

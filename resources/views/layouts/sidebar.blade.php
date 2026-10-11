@@ -19,6 +19,7 @@
     $activeDeliveries = request()->routeIs('deliveries.*');
     $activeScan      = request()->routeIs('deliveries.scan-page');
     $activeDeliveriesMain = $activeDeliveries && ! $activeScan;
+    $activeSorting = request()->routeIs('sorting-center.*');
     $activeRiders    = request()->routeIs('riders.*');
     $activePickups   = request()->routeIs('pickup-requests.*');
     $activeStaff     = request()->routeIs('staff.*');
@@ -28,6 +29,7 @@
     $activeCenters   = request()->routeIs('centers.*');
     $activeAreas     = request()->routeIs('service-areas.*');
     $activeTransactions = request()->routeIs('transactions.*');
+    $activeNotifications = request()->routeIs('notifications.*');
     $activeReports   = request()->routeIs('reports.*');
     $activeArchived  = request()->routeIs('deliveries.archived');
     $activeSettings  = request()->routeIs('settings.*');
@@ -217,6 +219,20 @@
                   x-show="!sidebarHover" role="tooltip" aria-hidden="true">Dashboard</span>
         </a>
 
+        {{-- Notifications --}}
+        <a href="{{ route('notifications.index') }}"
+           aria-label="Notifications"
+           @if($activeNotifications) aria-current="page" @endif
+           class="relative group flex items-center h-10 w-full rounded-xl transition-colors gap-3 {{ $activeNotifications ? 'bg-teal-light text-teal-dark' : 'hover:bg-teal-light hover:text-teal-dark' }}"
+           :class="sidebarHover ? 'px-3 justify-start' : 'justify-center'">
+            <svg class="h-5 w-5 flex-shrink-0 {{ $activeNotifications ? 'text-teal-dark' : 'text-teal' }} transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+            </svg>
+            <span x-show="sidebarHover" x-cloak class="text-sm font-medium whitespace-nowrap block {{ $activeNotifications ? 'text-teal-dark' : 'text-[#1F2933]' }}">Notifications</span>
+            <span class="pointer-events-none absolute left-full ml-3 top-1/2 -translate-y-1/2 px-2.5 py-1 bg-white text-[#1F2933] text-xs font-medium rounded-lg border border-teal/20 shadow-lg whitespace-nowrap z-50 opacity-0 group-hover:opacity-100 transition-opacity"
+                  x-show="!sidebarHover" role="tooltip" aria-hidden="true">Notifications</span>
+        </a>
+
         @if(!$isRider)
 
         {{-- Deliveries (dropdown parent: the link navigates, the arrow toggles the child) --}}
@@ -255,6 +271,20 @@
                 <span class="text-[13px] font-medium whitespace-nowrap block {{ $activeScan ? 'text-teal-dark' : 'text-gray-600' }}">Scan Parcel</span>
             </a>
         </div>
+
+        {{-- Sorting Center (operational hub; detail workflow untouched) --}}
+        <a href="{{ route('sorting-center.index') }}"
+           aria-label="Sorting Center"
+           @if($activeSorting) aria-current="page" @endif
+           class="relative group flex items-center h-10 w-full rounded-xl transition-colors gap-3 {{ $activeSorting ? 'bg-teal-light text-teal-dark' : 'hover:bg-teal-light hover:text-teal-dark' }}"
+           :class="sidebarHover ? 'px-3 justify-start' : 'justify-center'">
+            <svg class="h-5 w-5 flex-shrink-0 {{ $activeSorting ? 'text-teal-dark' : 'text-teal' }} transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+            </svg>
+            <span x-show="sidebarHover" x-cloak class="text-sm font-medium whitespace-nowrap block {{ $activeSorting ? 'text-teal-dark' : 'text-[#1F2933]' }}">Sorting Center</span>
+            <span class="pointer-events-none absolute left-full ml-3 top-1/2 -translate-y-1/2 px-2.5 py-1 bg-white text-[#1F2933] text-xs font-medium rounded-lg border border-teal/20 shadow-lg whitespace-nowrap z-50 opacity-0 group-hover:opacity-100 transition-opacity"
+                  x-show="!sidebarHover" role="tooltip" aria-hidden="true">Sorting Center</span>
+        </a>
 
         {{-- Riders --}}
         <a href="{{ route('riders.index') }}"
@@ -422,64 +452,6 @@
                   x-show="!sidebarHover" role="tooltip" aria-hidden="true">Archived</span>
         </a>
         @endif
-
-        @if(!$isRider)
-        <div x-show="sidebarHover" x-cloak class="border-t border-teal/10 my-0.5 w-full"></div>
-        @endif
-
-        @if(!$isRider)
-        {{-- Settings --}}
-        <a href="{{ route('settings.index') }}"
-           aria-label="Settings"
-           @if($activeSettings) aria-current="page" @endif
-           class="relative group flex items-center h-10 w-full rounded-xl transition-colors gap-3 {{ $activeSettings ? 'bg-teal-light text-teal-dark' : 'hover:bg-teal-light hover:text-teal-dark' }}"
-           :class="sidebarHover ? 'px-3 justify-start' : 'justify-center'">
-            <svg class="h-5 w-5 flex-shrink-0 {{ $activeSettings ? 'text-teal-dark' : 'text-teal' }} transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-            </svg>
-            <span x-show="sidebarHover" x-cloak class="text-sm font-medium whitespace-nowrap block {{ $activeSettings ? 'text-teal-dark' : 'text-[#1F2933]' }}">Settings</span>
-            <span class="pointer-events-none absolute left-full ml-3 top-1/2 -translate-y-1/2 px-2.5 py-1 bg-white text-[#1F2933] text-xs font-medium rounded-lg border border-teal/20 shadow-lg whitespace-nowrap z-50 opacity-0 group-hover:opacity-100 transition-opacity"
-                  x-show="!sidebarHover" role="tooltip" aria-hidden="true">Settings</span>
-        </a>
-        @endif
         @endif
     </nav>
-
-    {{-- Profile block + logout --}}
-    <div class="px-3 py-3 border-t border-teal/10 flex flex-col gap-1.5 mt-auto">
-        <a href="{{ route('profile.show') }}" title="Open profile"
-           class="group relative flex items-center rounded-xl transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary"
-           :class="sidebarHover ? 'gap-3 px-3 py-2 justify-start bg-white/60 hover:bg-teal-light' : 'justify-center py-1'">
-            @if($profilePhotoUrl)
-                <img src="{{ $profilePhotoUrl }}" alt="Profile photo" class="h-8 w-8 rounded-full object-cover ring-2 ring-teal/20 group-hover:ring-secondary transition flex-shrink-0">
-            @else
-                <div class="h-8 w-8 rounded-full bg-teal-light ring-2 ring-teal/20 group-hover:ring-secondary flex items-center justify-center text-teal-dark text-sm font-bold transition flex-shrink-0">
-                    {{ $userInitial }}
-                </div>
-            @endif
-            <div x-show="sidebarHover" x-cloak class="min-w-0 flex-1 block">
-                <p class="text-sm font-semibold text-[#1F2933] truncate">{{ $accountTitle }}</p>
-                @if($accountTitle !== $user->roleLabel())
-                    <p class="text-xs font-medium text-teal-dark truncate">{{ $user->roleLabel() }}</p>
-                @endif
-                <p class="text-xs text-gray-500 truncate">{{ $userEmail }}</p>
-            </div>
-            <span class="pointer-events-none absolute left-full ml-3 top-1/2 -translate-y-1/2 px-2.5 py-1 bg-white text-[#1F2933] text-xs font-medium rounded-lg border border-teal/20 shadow-lg whitespace-nowrap z-50 opacity-0 group-hover:opacity-100 transition-opacity"
-                  x-show="!sidebarHover" role="tooltip" aria-hidden="true">{{ $accountTitle }} · Profile</span>
-        </a>
-        <form method="POST" action="{{ route('logout') }}">
-            @csrf
-            <button type="submit" aria-label="Log out"
-                    class="relative group flex items-center h-10 w-full rounded-xl transition-colors gap-3 text-teal-dark hover:bg-teal-light hover:text-teal-dark"
-                    :class="sidebarHover ? 'px-3 justify-start text-red-600 hover:bg-red-50' : 'justify-center'">
-                <svg class="h-5 w-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                </svg>
-                <span x-show="sidebarHover" x-cloak class="text-sm font-medium whitespace-nowrap block">Log Out</span>
-                <span class="pointer-events-none absolute left-full ml-3 top-1/2 -translate-y-1/2 px-2.5 py-1 bg-white text-[#1F2933] text-xs font-medium rounded-lg border border-teal/20 shadow-lg whitespace-nowrap z-50 opacity-0 group-hover:opacity-100 transition-opacity"
-                      x-show="!sidebarHover" role="tooltip" aria-hidden="true">Log Out</span>
-            </button>
-        </form>
-    </div>
 </aside>

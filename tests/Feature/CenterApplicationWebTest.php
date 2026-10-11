@@ -315,7 +315,9 @@ class CenterApplicationWebTest extends TestCase
         $this->get('/logistics-center/application-status')
             ->assertOk()
             ->assertSee('Check a Logistics Center Application Status')
-            ->assertSee('Email Address');
+            ->assertSee('Check application status', false)
+            ->assertSee('Email address')
+            ->assertSee('How it works', false);
     }
 
     public function test_status_validates_email(): void

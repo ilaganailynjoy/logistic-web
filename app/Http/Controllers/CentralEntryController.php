@@ -4,30 +4,42 @@ namespace App\Http\Controllers;
 
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\View\View;
 
 /**
  * INVOIZ central entry point.
  *
- * Guests see the public landing page. Authenticated users never pick a
- * platform: their existing account role decides the destination,
- * server-side. Platform access itself stays enforced by the existing
- * route middleware — this controller only chooses where to send people.
+ * There is no public landing page: guests go straight to the Logistics
+ * login, and authenticated users never pick a platform — their existing
+ * account role decides the destination, server-side. Accounts with no
+ * logistics destination (buyer/seller without a configured platform) are
+ * signed out back to login with an explanation instead of stranding them
+ * on a missing page. Platform access itself stays enforced by the
+ * existing route middleware — this controller only chooses where to send
+ * people.
  */
 class CentralEntryController extends Controller
 {
-    public function index(): View|RedirectResponse
+    public function index(): RedirectResponse
     {
         $user = auth()->user();
 
         if (! $user) {
-            return view('landing');
+            return redirect()->route('login');
         }
 
         $destination = self::destinationFor($user);
 
         if ($destination === null) {
-            return view('landing');
+            Auth::guard('web')->logout();
+            request()->session()->invalidate();
+            request()->session()->regenerateToken();
+
+            return redirect()->route('login')->with(
+                'error',
+                'This area is restricted to authorized logistics staff and riders.'
+            );
         }
 
         return redirect($destination);
@@ -49,8 +61,9 @@ class CentralEntryController extends Controller
      * Resolve the post-login / central-entry destination for a user.
      *
      * Returns a URL (relative for internal routes, absolute for configured
-     * external platforms), or null when the user should stay on the public
-     * landing page (buyer/seller without a configured platform).
+     * external platforms), or null when the user has no logistics
+     * destination (buyer/seller without a configured platform) and should
+     * be sent back to login.
      */
     public static function destinationFor(User $user): ?string
     {

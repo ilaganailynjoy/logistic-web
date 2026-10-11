@@ -474,6 +474,11 @@ class DeliveryController extends Controller
             $delivery->assigned_at = now();
         }
 
+        // A (re)assignment starts a fresh next-step cycle: any prior
+        // re-attempt request or center return is superseded.
+        $delivery->reattempt_requested_at = null;
+        $delivery->returned_at = null;
+
         $delivery->save();
 
         DeliveryStatusLog::create([

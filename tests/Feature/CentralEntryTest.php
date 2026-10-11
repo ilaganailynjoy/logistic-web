@@ -7,9 +7,11 @@ use App\Models\User;
 use Tests\TestCase;
 
 /**
- * INVOIZ central entry: guests see the public landing page, authenticated
- * users are routed server-side by their existing account role — never a
- * platform-selection screen. Access enforcement stays with middleware.
+ * INVOIZ central entry: no public landing page — guests go straight to
+ * the Logistics login, authenticated users are routed server-side by
+ * their existing account role (never a platform-selection screen), and
+ * accounts without a logistics destination are signed out to login.
+ * Access enforcement stays with middleware.
  */
 class CentralEntryTest extends TestCase
 {
@@ -34,13 +36,10 @@ class CentralEntryTest extends TestCase
 
     // ── Guest ────────────────────────────────────────────────────
 
-    public function test_guest_sees_public_landing_page(): void
+    public function test_guest_goes_straight_to_login(): void
     {
         $this->get(route('landing'))
-            ->assertOk()
-            ->assertSee('INVOIZ')
-            ->assertSee('Login')
-            ->assertDontSee('Choose your platform');
+            ->assertRedirect(route('login'));
     }
 
     // ── Authenticated routing ────────────────────────────────────
@@ -61,20 +60,22 @@ class CentralEntryTest extends TestCase
             ->assertRedirect(route('rider.entry', absolute: false));
     }
 
-    public function test_buyer_without_configured_platform_stays_on_landing(): void
+    public function test_buyer_without_configured_platform_is_signed_out_to_login(): void
     {
         $this->actingAs($this->user('buyer'))
             ->get(route('landing'))
-            ->assertOk()
-            ->assertSee('INVOIZ');
+            ->assertRedirect(route('login'));
+
+        $this->assertGuest();
     }
 
-    public function test_seller_without_configured_platform_stays_on_landing(): void
+    public function test_seller_without_configured_platform_is_signed_out_to_login(): void
     {
         $this->actingAs($this->user('seller'))
             ->get(route('landing'))
-            ->assertOk()
-            ->assertSee('INVOIZ');
+            ->assertRedirect(route('login'));
+
+        $this->assertGuest();
     }
 
     public function test_destination_for_resolves_each_role(): void
@@ -137,13 +138,14 @@ class CentralEntryTest extends TestCase
         $this->assertGuest();
     }
 
-    public function test_logout_returns_to_public_entry(): void
+    public function test_logout_returns_to_login(): void
     {
         $this->actingAs($this->user('staff'))
             ->post(route('logout'))
             ->assertRedirect('/');
 
-        $this->get(route('landing'))->assertOk()->assertSee('INVOIZ');
+        $this->get(route('landing'))->assertRedirect(route('login'));
+        $this->followRedirects($this->get(route('login')))->assertOk();
     }
 
     // ── Middleware still enforces access ─────────────────────────

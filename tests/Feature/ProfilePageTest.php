@@ -149,7 +149,7 @@ class ProfilePageTest extends TestCase
         $this->cleanupAvatar($path);
     }
 
-    public function test_sidebar_shows_new_photo_after_combined_update(): void
+    public function test_topbar_shows_new_photo_after_combined_update(): void
     {
         $user = User::factory()->create(['role' => 'admin']);
 
@@ -171,7 +171,7 @@ class ProfilePageTest extends TestCase
         $this->cleanupAvatar($path);
     }
 
-    public function test_sidebar_shows_new_name_for_staff_after_combined_update(): void
+    public function test_topbar_shows_new_name_for_staff_after_combined_update(): void
     {
         $user = User::factory()->create(['role' => 'staff']);
 
@@ -183,7 +183,7 @@ class ProfilePageTest extends TestCase
             ])
             ->assertRedirect(route('profile.show'));
 
-        // Staff users see their name (not role label) in the sidebar account block
+        // Staff users see their name (not role label) in the top-bar account area
         $this->actingAs($user->fresh())
             ->get(route('dashboard'))
             ->assertOk()

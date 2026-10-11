@@ -7,14 +7,28 @@ use App\Models\User;
 use Tests\TestCase;
 
 /**
- * The shared app sidebar (x-app-layout) wears the INVOIZ brand and its
- * bottom user-information block is a single clickable Profile link to the
- * dedicated Profile page (profile.show). Settings remains a separate
- * navigation destination (settings.index) and there is no standalone
- * "Profile" sidebar navigation item.
+ * The shared app sidebar (x-app-layout) wears the INVOIZ brand and holds
+ * primary navigation only. Profile, Settings, and Logout live in the
+ * top-bar account dropdown (upper right): the profile trigger opens a menu
+ * whose My Profile item links to the dedicated Profile page
+ * (profile.show), whose Settings item links to Settings (settings.index),
+ * and whose Log Out button submits the secure POST form. The sidebar
+ * carries no account footer, no Settings item, and no standalone "Profile"
+ * navigation item.
  */
 class SidebarProfileLinkTest extends TestCase
 {
+    private function sidebarHtml(string $html): string
+    {
+        $start = strpos($html, '<aside id="app-sidebar"');
+        $end = strpos($html, '</aside>', $start);
+
+        $this->assertNotFalse($start);
+        $this->assertNotFalse($end);
+
+        return substr($html, $start, $end - $start);
+    }
+
     public function test_sidebar_renders_invoiz_logo_without_duplicate_text_branding(): void
     {
         $html = (string) $this->actingAs(User::factory()->create(['role' => 'admin']))
@@ -38,10 +52,17 @@ class SidebarProfileLinkTest extends TestCase
             ->get(route('dashboard'))
             ->assertOk()
             ->getContent();
+        $sidebar = $this->sidebarHtml($html);
 
-        // Label text is present in the markup for every advertised destination.
-        foreach (['Dashboard', 'Deliveries', 'Scan Parcel', 'Riders', 'Pickup Requests', 'Staff', 'Applications', 'Settings', 'Log Out'] as $label) {
-            $this->assertStringContainsString('>' . $label . '</span>', $html);
+        // Label text is present in the sidebar markup for every primary
+        // navigation destination. Account actions moved to the top bar.
+        foreach (['Dashboard', 'Deliveries', 'Scan Parcel', 'Riders', 'Pickup Requests', 'Staff', 'Applications'] as $label) {
+            $this->assertStringContainsString('>' . $label . '</span>', $sidebar);
+        }
+
+        // Profile, Settings, and Logout no longer appear in the sidebar.
+        foreach (['>Settings</span>', '>Log Out</span>', '>Profile<'] as $absent) {
+            $this->assertStringNotContainsString($absent, $sidebar);
         }
 
         // The labels are gated by the same single sidebar state that drives the
@@ -63,7 +84,7 @@ class SidebarProfileLinkTest extends TestCase
         $this->assertStringContainsString('aria-hidden="true"', $html);
     }
 
-    public function test_sidebar_logout_remains_available(): void
+    public function test_topbar_logout_remains_available(): void
     {
         $this->actingAs(User::factory()->create(['role' => 'admin']))
             ->get(route('dashboard'))
@@ -73,12 +94,30 @@ class SidebarProfileLinkTest extends TestCase
             ->assertSee('Log Out');
     }
 
+    public function test_sidebar_has_no_account_footer_or_forms(): void
+    {
+        $html = (string) $this->actingAs(User::factory()->create(['role' => 'admin']))
+            ->get(route('dashboard'))
+            ->assertOk()
+            ->getContent();
+        $sidebar = $this->sidebarHtml($html);
+
+        // No account footer, no logout form, and no profile/settings links
+        // remain inside the sidebar pane.
+        $this->assertStringNotContainsString('action="' . route('logout') . '"', $sidebar);
+        $this->assertStringNotContainsString(route('profile.show'), $sidebar);
+        $this->assertStringNotContainsString(route('settings.index'), $sidebar);
+        $this->assertStringNotContainsString('title="Open profile"', $sidebar);
+        $this->assertStringNotContainsString('aria-label="Log out"', $sidebar);
+    }
+
     public function test_sidebar_all_navigation_destinations_remain_unchanged(): void
     {
         $html = (string) $this->actingAs(User::factory()->create(['role' => 'admin']))
             ->get(route('dashboard'))
             ->assertOk()
             ->getContent();
+        $sidebar = $this->sidebarHtml($html);
 
         $urls = [
             route('dashboard'),
@@ -94,16 +133,18 @@ class SidebarProfileLinkTest extends TestCase
             route('transactions.index'),
             route('reports.index'),
             route('deliveries.archived'),
-            route('settings.index'),
-            route('profile.show'),
         ];
 
         foreach ($urls as $url) {
-            $this->assertStringContainsString($url, $html);
+            $this->assertStringContainsString($url, $sidebar);
         }
+
+        // Profile and Settings still resolve from the shell via the top bar.
+        $this->assertStringContainsString(route('settings.index'), $html);
+        $this->assertStringContainsString(route('profile.show'), $html);
     }
 
-    public function test_sidebar_user_block_links_to_the_profile_page(): void
+    public function test_topbar_profile_control_links_to_the_profile_page(): void
     {
         $user = User::factory()->create(['role' => 'admin']);
 
@@ -111,8 +152,7 @@ class SidebarProfileLinkTest extends TestCase
             ->get(route('dashboard'))
             ->assertOk()
             ->assertSee('<a href="' . route('profile.show') . '" title="Open profile"', false)
-            ->assertSee('class="group relative flex items-center rounded-xl transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary"', false)
-            ->assertSee($user->email);
+            ->assertSee('My Profile', false);
     }
 
     public function test_sidebar_profile_block_does_not_link_to_the_settings_page(): void
@@ -123,23 +163,26 @@ class SidebarProfileLinkTest extends TestCase
             ->assertDontSee('href="' . route('settings.index') . '" class="group flex items-center gap-3', false);
     }
 
-    public function test_sidebar_settings_nav_item_still_links_to_settings_page(): void
+    public function test_topbar_settings_control_links_to_settings_page(): void
     {
         $this->actingAs(User::factory()->create(['role' => 'admin']))
             ->get(route('dashboard'))
             ->assertOk()
-            ->assertSee(route('settings.index'));
+            ->assertSee(route('settings.index'))
+            ->assertSee('title="Settings"', false);
     }
 
     public function test_sidebar_has_no_separate_profile_navigation_item(): void
     {
-        $this->actingAs(User::factory()->create(['role' => 'admin']))
+        $html = (string) $this->actingAs(User::factory()->create(['role' => 'admin']))
             ->get(route('dashboard'))
             ->assertOk()
-            ->assertDontSee('>Profile<');
+            ->getContent();
+
+        $this->assertStringNotContainsString('>Profile<', $this->sidebarHtml($html));
     }
 
-    public function test_sidebar_displays_profile_photo_when_one_exists(): void
+    public function test_topbar_displays_profile_photo_when_one_exists(): void
     {
         $user = User::factory()->create(['role' => 'admin']);
 
@@ -159,7 +202,7 @@ class SidebarProfileLinkTest extends TestCase
         }
     }
 
-    public function test_sidebar_falls_back_to_initial_avatar_when_no_profile_photo_exists(): void
+    public function test_topbar_falls_back_to_initial_avatar_when_no_profile_photo_exists(): void
     {
         $this->actingAs(User::factory()->create(['role' => 'admin']))
             ->get(route('dashboard'))

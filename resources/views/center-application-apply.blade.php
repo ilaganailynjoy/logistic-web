@@ -427,12 +427,13 @@
             border-color: #16697a;
             color: #0E4A57;
         }
-        /* Indicator labels: keep long step names on one truncated line on small
-           screens so the stepper never overflows at 320px. */
+        /* Indicator labels: wrap to two lines instead of truncating, so
+           long step names (notably "Supporting Documents") stay fully
+           readable on small screens without overflowing at 320px. */
         .step-indicator-label {
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
+            overflow-wrap: break-word;
+            word-break: break-word;
+            hyphens: auto;
         }
         @media (prefers-reduced-motion: reduce) {
             .animate-spin { animation: none; }
@@ -449,55 +450,57 @@
         </style>
     </noscript>
 </head>
-<body class="font-sans antialiased bg-[#F7F6F2] text-gray-900 overflow-x-hidden">
+<body class="font-sans antialiased bg-[#F8FAF9] text-gray-900 overflow-x-hidden">
 <div class="min-h-screen flex flex-col-reverse lg:flex-row">
 
     {{-- ================= LEFT PANEL — LOGISTICS BRANDING ================= --}}
-    <div class="lg:w-1/2 bg-gradient-to-br from-[#16697A] via-[#0E4A57] to-[#0B3B46] text-white flex flex-col p-8 sm:p-12 xl:p-16">
-        <div class="flex-1 flex flex-col justify-center max-w-xl mx-auto lg:mx-0 w-full">
+    {{-- Compact 40/60 split shared with login + status: narrower brand column,
+         tighter rhythm (mt-8 / space-y-3), max-w-md line lengths. --}}
+    <div class="lg:w-[40%] xl:w-[38%] bg-gradient-to-br from-[#16697A] via-[#0E4A57] to-[#0B3B46] text-white flex flex-col p-6 sm:p-10 lg:p-10 xl:p-12">
+        <div class="w-full max-w-md mx-auto lg:mx-0 my-auto py-8 lg:py-10 flex flex-col justify-center">
             {{-- Brand --}}
-            <a href="{{ route('login') }}" class="inline-flex items-center gap-4 rounded-xl focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60">
-                <img src="{{ asset('images/logo.png') }}" alt="Logo" class="h-14 w-14 sm:h-16 sm:w-16 rounded-2xl object-cover ring-1 ring-white/25 shadow-lg">
+            <a href="{{ route('login') }}" class="inline-flex items-center gap-3 rounded-xl focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60">
+                <img src="{{ asset('images/logo.png') }}" alt="Logo" class="h-12 w-12 rounded-xl object-cover ring-1 ring-white/25 shadow-lg">
                 <div>
-                    <p class="text-2xl sm:text-3xl font-extrabold tracking-tight">Logistics</p>
-                    <p class="text-[11px] sm:text-xs font-semibold tracking-[0.3em] uppercase text-white/70 mt-0.5">Logistics Center</p>
+                    <p class="text-xl font-extrabold tracking-tight">Logistics</p>
+                    <p class="text-[11px] font-semibold tracking-[0.25em] uppercase text-white/70 mt-0.5">Logistics Center</p>
                 </div>
             </a>
 
             {{-- Headline --}}
-            <h1 class="mt-12 sm:mt-16 text-3xl sm:text-4xl xl:text-5xl font-extrabold leading-tight tracking-tight">
-                Open a<br>Logistics Center.
+            <h1 class="mt-8 text-2xl sm:text-3xl xl:text-4xl font-extrabold leading-tight tracking-tight">
+                Open a Logistics Center.
             </h1>
 
-            <p class="mt-5 text-sm sm:text-base text-white/75 leading-relaxed max-w-md">
+            <p class="mt-4 text-sm sm:text-[15px] text-white/75 leading-relaxed">
                 Run your own INVOIZ Logistics Center and connect riders, deliveries, and service areas in your community.
             </p>
 
             {{-- Steps --}}
-            <ol class="mt-10 space-y-4 max-w-md text-sm sm:text-base">
+            <ol class="mt-8 space-y-3 text-sm">
                 <li class="flex items-start gap-3">
                     <span class="flex-none w-7 h-7 rounded-full bg-white/10 ring-1 ring-white/20 flex items-center justify-center text-xs font-bold">1</span>
-                    <span class="text-white/80">Tell us about your center and the owner.</span>
+                    <span class="text-white/80 pt-1">Tell us about your center and the owner.</span>
                 </li>
                 <li class="flex items-start gap-3">
                     <span class="flex-none w-7 h-7 rounded-full bg-white/10 ring-1 ring-white/20 flex items-center justify-center text-xs font-bold">2</span>
-                    <span class="text-white/80">Add your center location.</span>
+                    <span class="text-white/80 pt-1">Add your center location.</span>
                 </li>
                 <li class="flex items-start gap-3">
                     <span class="flex-none w-7 h-7 rounded-full bg-white/10 ring-1 ring-white/20 flex items-center justify-center text-xs font-bold">3</span>
-                    <span class="text-white/80">Upload the required documents for review.</span>
+                    <span class="text-white/80 pt-1">Upload the required documents for review.</span>
                 </li>
                 <li class="flex items-start gap-3">
                     <span class="flex-none w-7 h-7 rounded-full bg-white/10 ring-1 ring-white/20 flex items-center justify-center text-xs font-bold">4</span>
-                    <span class="text-white/80">Review and submit your application.</span>
+                    <span class="text-white/80 pt-1">Review and submit your application.</span>
                 </li>
             </ol>
         </div>
 
         {{-- Footer --}}
-        <div class="pt-10 flex flex-wrap items-center justify-between gap-3 max-w-xl mx-auto lg:mx-0 w-full">
-            <p class="text-xs sm:text-sm text-white/50">Logistics &middot; v1.0 &middot; Logistics</p>
-            <a href="{{ route('login') }}" class="inline-flex items-center gap-1.5 text-xs sm:text-sm font-semibold text-white/80 hover:text-white underline underline-offset-2 rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60">
+        <div class="mt-8 pt-6 border-t border-white/10 flex flex-wrap items-center justify-between gap-3 w-full max-w-md mx-auto lg:mx-0">
+            <p class="text-xs text-white/50">Logistics &middot; v1.0 &middot; Logistics</p>
+            <a href="{{ route('login') }}" class="inline-flex items-center gap-1.5 text-xs font-semibold text-white/80 hover:text-white underline underline-offset-2 rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60">
                 <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
                 Back to Login
             </a>
@@ -505,8 +508,9 @@
     </div>
 
     {{-- ================= RIGHT PANEL — APPLICATION WIZARD ================= --}}
-    <div class="lg:w-1/2 flex items-start justify-center p-4 sm:p-10 xl:p-16">
-        <div class="w-full max-w-2xl">
+    {{-- Keep vertical-centering + m-auto (already implemented); widen to 60% to match. --}}
+    <div class="flex-1 lg:w-[60%] xl:w-[62%] flex justify-center bg-[#F8FAF9] px-4 py-10 sm:p-10">
+        <div class="w-full max-w-2xl m-auto">
             {{-- Success message --}}
             @if (session('success'))
                 <div role="status" aria-live="polite"
@@ -549,7 +553,7 @@
             @endif
 
             <form method="POST" action="{{ route('center-application.store') }}" enctype="multipart/form-data"
-                  class="mt-6 bg-white rounded-2xl border border-gray-100 shadow-sm p-5 sm:p-8"
+                  class="mt-6 bg-white rounded-2xl border border-gray-200/70 shadow-[0_12px_40px_-16px_rgba(14,74,87,0.25)] p-6 sm:p-8"
                   x-data="centerWizard({
                       initialStep: @js($initialStep - 1),
                       errorSteps: @js($zeroBasedErrorSteps),
@@ -581,33 +585,53 @@
                     </div>
                 </div>
 
-                {{-- Step indicator --}}
-                <ol class="mt-5 grid grid-cols-4 gap-1 sm:flex sm:items-center sm:gap-0" aria-label="Application steps">
+                {{-- Step indicator: one continuous track behind the circles.
+                     The track spans center-to-center of the outer steps; the
+                     opaque circles mask every segment joint, so no gaps can
+                     appear at any width. Progress uses INVOIZ teal for
+                     completed and active steps, light gray for upcoming ones.
+                     Only segment colors change with state — geometry never
+                     moves. Completed steps show a teal check; the current
+                     step keeps its number, scale, and shadow so it stays
+                     the single most prominent item. --}}
+                <ol class="relative mt-5 grid grid-cols-4 items-start" aria-label="Application steps">
+                    <div aria-hidden="true" class="pointer-events-none absolute inset-x-[12.5%] top-[22px] h-0.5 sm:top-[28px]">
+                        <div class="flex h-full">
+                            <div class="h-full flex-1 transition-colors duration-300"
+                                 :class="isError(1) ? 'bg-red-300' : ((1 <= step) ? 'bg-teal' : 'bg-gray-200')"></div>
+                            <div class="h-full flex-1 transition-colors duration-300"
+                                 :class="isError(2) ? 'bg-red-300' : ((2 <= step) ? 'bg-teal' : 'bg-gray-200')"></div>
+                            <div class="h-full flex-1 transition-colors duration-300"
+                                 :class="isError(3) ? 'bg-red-300' : ((3 <= step) ? 'bg-teal' : 'bg-gray-200')"></div>
+                        </div>
+                    </div>
                     <template x-for="(title, i) in stepTitles" :key="i">
-                        <li class="min-w-0 sm:flex-1">
+                        <li class="min-w-0">
                             <button type="button"
                                     :disabled="!isReachable(i) || submitting"
                                     :aria-current="isCurrent(i) ? 'step' : null"
                                     :aria-label="(isCurrent(i) ? 'Current step, ' : '') + 'Step ' + (i + 1) + ': ' + title"
                                     x-on:click="goTo(i)"
-                                    class="group w-full min-h-[44px] rounded-xl p-1.5 text-center focus:outline-none focus-visible:ring-2 focus-visible:ring-teal focus-visible:ring-offset-1 sm:p-2 disabled:cursor-not-allowed">
-                                <span class="mx-auto flex h-7 w-7 sm:h-8 sm:w-8 items-center justify-center rounded-full text-xs font-bold ring-1 ring-gray-200 transition-colors sm:h-9 sm:w-9"
-                                      :class="isError(i)
-                                          ? 'bg-red-100 text-red-700 ring-red-300'
-                                          : (isCurrent(i)
-                                              ? 'bg-teal text-white ring-teal ring-4 ring-teal/20'
-                                              : (isCompleted(i)
-                                                  ? 'bg-emerald-50 text-emerald-700 ring-emerald-200'
-                                                  : 'bg-gray-100 text-gray-400 ring-gray-200'))">
-                                    <template x-if="isCompleted(i) && !isError(i) && !isCurrent(i)">
-                                        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
-                                    </template>
-                                    <template x-if="!isCompleted(i) || isError(i) || isCurrent(i)">
-                                        <span x-text="i + 1" aria-hidden="true"></span>
-                                    </template>
+                                    class="group w-full min-h-[44px] rounded-xl px-0.5 py-1 text-center focus:outline-none focus-visible:ring-2 focus-visible:ring-teal focus-visible:ring-offset-1 sm:p-1.5 disabled:cursor-not-allowed">
+                                <span class="flex justify-center" aria-hidden="true">
+                                    <span class="flex h-9 w-9 sm:h-11 sm:w-11 flex-none items-center justify-center rounded-full text-[13px] font-bold ring-2 transition-all duration-300"
+                                          :class="isError(i)
+                                              ? 'bg-red-100 text-red-700 ring-red-300'
+                                              : (isCurrent(i)
+                                                  ? 'bg-teal text-white ring-teal/40 shadow-[0_8px_20px_-8px_rgba(22,105,122,0.65)] scale-105'
+                                                  : (isCompleted(i)
+                                                      ? 'bg-teal text-white ring-teal/40'
+                                                      : 'bg-white text-gray-400 ring-gray-300'))">
+                                        <template x-if="isCompleted(i) && !isError(i) && !isCurrent(i)">
+                                            <svg class="h-[18px] w-[18px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+                                        </template>
+                                        <template x-if="!isCompleted(i) || isError(i) || isCurrent(i)">
+                                            <span x-text="i + 1" aria-hidden="true"></span>
+                                        </template>
+                                    </span>
                                 </span>
-                                <span class="step-indicator-label mt-1 block text-[10px] font-semibold sm:text-xs"
-                                      :class="isCurrent(i) ? 'text-teal-dark' : (isError(i) ? 'text-red-600' : (isReachable(i) && !isCompleted(i) ? 'text-gray-500' : 'text-gray-400'))"
+                                <span class="step-indicator-label mt-1.5 block px-0.5 text-center text-[10px] font-semibold leading-snug sm:text-[11px]"
+                                      :class="isCurrent(i) ? 'font-bold text-teal-dark' : (isError(i) ? 'text-red-600' : (isCompleted(i) ? 'text-gray-800' : (isReachable(i) ? 'text-gray-500' : 'text-gray-400'))))"
                                       x-text="title"></span>
                             </button>
                         </li>
@@ -615,16 +639,17 @@
                 </ol>
 
                 {{-- ============ STEP 1 — CENTER & OWNER ============ --}}
-                <section x-cloak x-show="step === 0" aria-labelledby="wizard-step-1" class="mt-6">
-                    <h3 id="wizard-step-1" tabindex="-1" x-ref="stepHeading0" class="text-base sm:text-lg font-bold text-gray-900 focus:outline-none">
+                <section x-cloak x-show="step === 0" aria-labelledby="wizard-step-1" class="mt-8">
+                    <h3 id="wizard-step-1" tabindex="-1" x-ref="stepHeading0" class="text-[20px] sm:text-[23px] font-bold tracking-tight text-[#1F2933] focus:outline-none">
                         Center &amp; Owner Details
                     </h3>
+                    <p class="mt-2 text-sm leading-relaxed text-gray-500">Tell us about your center and its owner. All fields marked <span class="text-red-500" aria-hidden="true">*</span> are required.</p>
 
-                    <div class="mt-6 grid gap-5 sm:grid-cols-2">
+                    <div class="mt-6 grid gap-x-5 gap-y-6 sm:grid-cols-2">
                         <div class="min-w-0">
-                            <label for="business_name" class="block text-xs font-semibold tracking-wider uppercase text-gray-500">Logistics Center Name <span class="text-red-500" aria-hidden="true">*</span></label>
+                            <label for="business_name" class="block text-xs font-bold tracking-wider uppercase text-gray-600">Logistics Center Name <span class="text-red-500" aria-hidden="true">*</span></label>
                             <input id="business_name" x-ref="business_name" x-on:input="clearFieldError('business_name')" type="text" name="business_name" value="{{ old('business_name') }}"
-                                   class="block mt-2 w-full @error('business_name') border-red-400 focus:border-red-500 focus:ring-red-500 @enderror"
+                                   class="block mt-2 h-[52px] w-full rounded-xl border-gray-300 bg-white px-4 text-[15px] text-gray-900 placeholder:text-gray-400 focus:border-teal focus:ring-4 focus:ring-teal/15 @error('business_name') border-red-400 focus:border-red-500 focus:ring-red-500 @enderror"
                                    required maxlength="255" autocomplete="organization" placeholder="e.g., Midtown Logistics Hub"
                                    :aria-invalid="clientErrors['business_name'] ? 'true' : '@error('business_name') true @enderror'" />
                             <p x-cloak x-show="clientErrors['business_name']" class="mt-1.5 text-sm text-red-600" x-text="clientErrors['business_name']"></p>
@@ -632,9 +657,9 @@
                         </div>
 
                         <div class="min-w-0">
-                            <label for="owner_name" class="block text-xs font-semibold tracking-wider uppercase text-gray-500">Owner Name <span class="text-red-500" aria-hidden="true">*</span></label>
+                            <label for="owner_name" class="block text-xs font-bold tracking-wider uppercase text-gray-600">Owner Name <span class="text-red-500" aria-hidden="true">*</span></label>
                             <input id="owner_name" x-ref="owner_name" x-on:input="clearFieldError('owner_name')" type="text" name="owner_name" value="{{ old('owner_name') }}"
-                                   class="block mt-2 w-full @error('owner_name') border-red-400 focus:border-red-500 focus:ring-red-500 @enderror"
+                                   class="block mt-2 h-[52px] w-full rounded-xl border-gray-300 bg-white px-4 text-[15px] text-gray-900 placeholder:text-gray-400 focus:border-teal focus:ring-4 focus:ring-teal/15 @error('owner_name') border-red-400 focus:border-red-500 focus:ring-red-500 @enderror"
                                    required maxlength="255" autocomplete="name" placeholder="Full name"
                                    :aria-invalid="clientErrors['owner_name'] ? 'true' : '@error('owner_name') true @enderror'" />
                             <p x-cloak x-show="clientErrors['owner_name']" class="mt-1.5 text-sm text-red-600" x-text="clientErrors['owner_name']"></p>
@@ -642,54 +667,62 @@
                         </div>
 
                         <div class="min-w-0">
-                            <label for="email" class="block text-xs font-semibold tracking-wider uppercase text-gray-500">Email Address <span class="text-red-500" aria-hidden="true">*</span></label>
+                            <label for="email" class="block text-xs font-bold tracking-wider uppercase text-gray-600">Email Address <span class="text-red-500" aria-hidden="true">*</span></label>
                             <input id="email" x-ref="email" x-on:input="clearFieldError('email'); resetEmailVerification()" type="email" name="email" value="{{ old('email') }}"
-                                   class="block mt-2 w-full @error('email') border-red-400 focus:border-red-500 focus:ring-red-500 @enderror"
+                                   class="block mt-2 h-[52px] w-full rounded-xl border-gray-300 bg-white px-4 text-[15px] text-gray-900 placeholder:text-gray-400 focus:border-teal focus:ring-4 focus:ring-teal/15 @error('email') border-red-400 focus:border-red-500 focus:ring-red-500 @enderror"
                                    required maxlength="255" autocomplete="email" placeholder="you@example.com"
                                    :aria-invalid="clientErrors['email'] ? 'true' : '@error('email') true @enderror'" />
                             <p x-cloak x-show="clientErrors['email']" class="mt-1.5 text-sm text-red-600" x-text="clientErrors['email']"></p>
                             @error('email')<p id="email_error" class="mt-1.5 text-sm text-red-600">{{ $message }}</p>@enderror
-                            {{-- Email OTP verification (mirrors rider apply) --}}
-                            <div x-cloak x-show="!emailVerifiedNow()" class="mt-3 rounded-xl border border-teal/20 bg-teal-light/40 p-4">
+                            {{-- Email OTP verification (mirrors rider apply).
+                                 Compact panel docked to the email field: it
+                                 shares the field column instead of spanning
+                                 the form, so the two-column rhythm stays
+                                 balanced. --}}
+                            <div x-cloak x-show="!emailVerifiedNow()" class="mt-4 rounded-xl border border-teal/25 bg-teal-light/60 p-4">
+                                <div class="flex items-center gap-2">
+                                    <svg class="h-4 w-4 flex-none text-teal-dark" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+                                    <p class="text-[13px] font-bold tracking-wide text-teal-dark uppercase">Email verification</p>
+                                </div>
                                 <template x-if="!codeSentTo">
-                                    <div>
-                                        <p class="text-xs text-gray-600">Verify this email address to continue. We'll send a 6-digit code.</p>
+                                    <div class="mt-2">
+                                        <p class="text-[13px] leading-relaxed text-gray-600">Verify this email address to continue. We&rsquo;ll send a 6-digit code.</p>
                                         <button type="button" x-on:click="sendVerifyCode()" :disabled="verifyBusy"
-                                                class="mt-2 inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl bg-teal px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-teal-dark focus:outline-none focus-visible:ring-2 focus-visible:ring-teal focus-visible:ring-offset-2 disabled:opacity-60 disabled:cursor-not-allowed">
-                                            <span x-text="verifyBusy ? 'Sending...' : 'Send verification code'">Send verification code</span>
+                                                class="mt-3 inline-flex min-h-[48px] w-full items-center justify-center gap-2 rounded-xl bg-teal px-6 py-2.5 text-sm font-bold text-white shadow-[0_8px_20px_-8px_rgba(22,105,122,0.5)] transition hover:bg-teal-dark active:bg-teal-dark focus:outline-none focus-visible:ring-2 focus-visible:ring-teal focus-visible:ring-offset-2 disabled:opacity-60 disabled:cursor-not-allowed disabled:shadow-none">
+                                            <span class="whitespace-nowrap" x-text="verifyBusy ? 'Sending...' : 'Send verification code'">Send verification code</span>
                                         </button>
                                     </div>
                                 </template>
                                 <template x-if="codeSentTo">
-                                    <div>
-                                        <p class="text-xs text-gray-600">Enter the 6-digit code sent to <span class="font-semibold text-gray-900" x-text="codeSentTo"></span>.</p>
-                                        <div class="mt-2 flex flex-col gap-2 sm:flex-row sm:items-center">
+                                    <div class="mt-2">
+                                        <p class="text-[13px] leading-relaxed text-gray-600">Enter the 6-digit code sent to <span class="font-semibold text-gray-900" x-text="codeSentTo"></span>.</p>
+                                        <div class="mt-3 flex flex-col gap-2.5 sm:flex-row">
                                             <input type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="123456"
                                                    x-model="verifyCode" :disabled="verifyBusy" aria-label="Verification code"
-                                                   class="block w-full sm:max-w-[12rem] text-center font-mono tracking-[0.3em]" />
+                                                   class="block h-[52px] w-full rounded-xl border-gray-300 text-center font-mono text-[15px] tracking-[0.3em] placeholder:text-gray-400 focus:border-teal focus:ring-4 focus:ring-teal/15 sm:flex-1" />
                                             <button type="button" x-on:click="confirmVerifyCode()" :disabled="verifyBusy || verifyCode.trim().length !== 6"
-                                                    class="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl bg-teal px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-teal-dark focus:outline-none focus-visible:ring-2 focus-visible:ring-teal focus-visible:ring-offset-2 disabled:opacity-60 disabled:cursor-not-allowed">
+                                                    class="inline-flex min-h-[48px] w-full items-center justify-center gap-2 rounded-xl bg-teal px-6 py-2.5 text-sm font-bold text-white shadow-[0_8px_20px_-8px_rgba(22,105,122,0.5)] transition hover:bg-teal-dark active:bg-teal-dark focus:outline-none focus-visible:ring-2 focus-visible:ring-teal focus-visible:ring-offset-2 disabled:opacity-60 disabled:cursor-not-allowed disabled:shadow-none sm:w-auto sm:flex-none sm:px-8">
                                                 <span x-text="verifyBusy ? 'Verifying...' : 'Verify'">Verify</span>
                                             </button>
                                         </div>
                                         <button type="button" x-on:click="sendVerifyCode()" :disabled="verifyBusy || resendWait > 0"
-                                                class="mt-1.5 min-h-[36px] text-xs font-semibold text-teal hover:text-teal-dark underline underline-offset-2 rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-teal disabled:opacity-60 disabled:no-underline">
+                                                class="mt-1 inline-flex min-h-[44px] items-center text-xs font-semibold text-teal hover:text-teal-dark underline underline-offset-2 rounded focus:outline-none focus-visible:ring-2 focus-visible:ring-teal disabled:opacity-60 disabled:no-underline">
                                             <span x-text="resendWait > 0 ? 'Resend code in ' + resendWait + 's' : 'Resend code'">Resend code</span>
                                         </button>
                                     </div>
                                 </template>
-                                <p x-cloak x-show="verifyMsg" class="mt-2 text-sm" :class="verifyMsgOk ? 'text-emerald-600' : 'text-red-600'" x-text="verifyMsg"></p>
+                                <p x-cloak x-show="verifyMsg" class="mt-2.5 text-sm font-medium" :class="verifyMsgOk ? 'text-emerald-600' : 'text-red-600'" x-text="verifyMsg"></p>
                             </div>
-                            <div x-cloak x-show="emailVerifiedNow()" class="mt-3 flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 p-3" role="status">
+                            <div x-cloak x-show="emailVerifiedNow()" class="mt-4 flex items-center gap-2.5 rounded-2xl border border-emerald-200 bg-emerald-50 p-4" role="status">
                                 <svg class="h-5 w-5 flex-none text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
                                 <p class="text-sm font-semibold text-emerald-700">Email verified<span x-text="verifiedEmail ? ' — ' + verifiedEmail : ''"></span></p>
                             </div>
                         </div>
 
                         <div class="min-w-0">
-                            <label for="phone" class="block text-xs font-semibold tracking-wider uppercase text-gray-500">Contact Number <span class="text-red-500" aria-hidden="true">*</span></label>
+                            <label for="phone" class="block text-xs font-bold tracking-wider uppercase text-gray-600">Contact Number <span class="text-red-500" aria-hidden="true">*</span></label>
                             <input id="phone" x-ref="phone" x-on:input="clearFieldError('phone')" type="tel" name="phone" value="{{ old('phone') }}"
-                                   class="block mt-2 w-full @error('phone') border-red-400 focus:border-red-500 focus:ring-red-500 @enderror"
+                                   class="block mt-2 h-[52px] w-full rounded-xl border-gray-300 bg-white px-4 text-[15px] text-gray-900 placeholder:text-gray-400 focus:border-teal focus:ring-4 focus:ring-teal/15 @error('phone') border-red-400 focus:border-red-500 focus:ring-red-500 @enderror"
                                    required maxlength="20" autocomplete="tel" placeholder="0917 123 4567"
                                    :aria-invalid="clientErrors['phone'] ? 'true' : '@error('phone') true @enderror'" />
                             <p x-cloak x-show="clientErrors['phone']" class="mt-1.5 text-sm text-red-600" x-text="clientErrors['phone']"></p>
@@ -700,23 +733,23 @@
 
                 {{-- ============ STEP 2 — CENTER LOCATION ============ --}}
                 <section x-cloak x-show="step === 1" aria-labelledby="wizard-step-2" class="mt-6">
-                    <h3 id="wizard-step-2" tabindex="-1" x-ref="stepHeading1" class="text-base sm:text-lg font-bold text-gray-900 focus:outline-none">
+                    <h3 id="wizard-step-2" tabindex="-1" x-ref="stepHeading1" class="text-[20px] sm:text-[23px] font-bold tracking-tight text-[#1F2933] focus:outline-none">
                         Center Location
                     </h3>
 
-                    <div class="mt-6 grid gap-5 sm:grid-cols-2">
+                    <div class="mt-6 grid gap-x-5 gap-y-6 sm:grid-cols-2">
                         <div class="min-w-0">
-                            <label for="house_number" class="block text-xs font-semibold tracking-wider uppercase text-gray-500">House / Unit Number</label>
+                            <label for="house_number" class="block text-xs font-bold tracking-wider uppercase text-gray-600">House / Unit Number</label>
                             <input id="house_number" x-ref="house_number" type="text" name="house_number" value="{{ old('house_number') }}"
-                                   class="block mt-2 w-full @error('house_number') border-red-400 focus:border-red-500 focus:ring-red-500 @enderror"
+                                   class="block mt-2 h-[52px] w-full rounded-xl border-gray-300 bg-white px-4 text-[15px] text-gray-900 placeholder:text-gray-400 focus:border-teal focus:ring-4 focus:ring-teal/15 @error('house_number') border-red-400 focus:border-red-500 focus:ring-red-500 @enderror"
                                    maxlength="50" autocomplete="address-line1" placeholder="e.g., 42" />
                             @error('house_number')<p class="mt-1.5 text-sm text-red-600">{{ $message }}</p>@enderror
                         </div>
 
                         <div class="min-w-0">
-                            <label for="street" class="block text-xs font-semibold tracking-wider uppercase text-gray-500">Street</label>
+                            <label for="street" class="block text-xs font-bold tracking-wider uppercase text-gray-600">Street</label>
                             <input id="street" x-ref="street" type="text" name="street" value="{{ old('street') }}"
-                                   class="block mt-2 w-full @error('street') border-red-400 focus:border-red-500 focus:ring-red-500 @enderror"
+                                   class="block mt-2 h-[52px] w-full rounded-xl border-gray-300 bg-white px-4 text-[15px] text-gray-900 placeholder:text-gray-400 focus:border-teal focus:ring-4 focus:ring-teal/15 @error('street') border-red-400 focus:border-red-500 focus:ring-red-500 @enderror"
                                    maxlength="255" autocomplete="address-line1" placeholder="e.g., Rizal Ave" />
                             @error('street')<p class="mt-1.5 text-sm text-red-600">{{ $message }}</p>@enderror
                         </div>
@@ -726,9 +759,9 @@
                              missing the selects fall back to plain text inputs. --}}
                         @if ($provinces->isNotEmpty())
                             <div class="sm:col-span-2 min-w-0">
-                                <label for="province" class="block text-xs font-semibold tracking-wider uppercase text-gray-500">Province</label>
+                                <label for="province" class="block text-xs font-bold tracking-wider uppercase text-gray-600">Province</label>
                                 <select id="province" name="province" x-ref="province" x-on:change="selectProvince"
-                                        class="block mt-2 w-full @error('province') border-red-400 focus:border-red-500 focus:ring-red-500 @enderror"
+                                        class="block mt-2 h-[52px] w-full rounded-xl border-gray-300 bg-white px-4 text-[15px] text-gray-900 placeholder:text-gray-400 focus:border-teal focus:ring-4 focus:ring-teal/15 @error('province') border-red-400 focus:border-red-500 focus:ring-red-500 @enderror"
                                         autocomplete="address-level1"
                                         aria-invalid="@error('province') true @enderror">
                                     <option value="">Select a province...</option>
@@ -740,10 +773,10 @@
                             </div>
 
                             <div class="min-w-0" :aria-busy="loadingMunicipalities ? 'true' : 'false'">
-                                <label for="municipality" class="block text-xs font-semibold tracking-wider uppercase text-gray-500">City / Municipality</label>
+                                <label for="municipality" class="block text-xs font-bold tracking-wider uppercase text-gray-600">City / Municipality</label>
                                 <select id="municipality" name="municipality" x-ref="municipality" x-on:change="selectMunicipality"
                                         :disabled="!provincePicked || loadingMunicipalities"
-                                        class="block mt-2 w-full @error('municipality') border-red-400 focus:border-red-500 focus:ring-red-500 @enderror"
+                                        class="block mt-2 h-[52px] w-full rounded-xl border-gray-300 bg-white px-4 text-[15px] text-gray-900 placeholder:text-gray-400 focus:border-teal focus:ring-4 focus:ring-teal/15 @error('municipality') border-red-400 focus:border-red-500 focus:ring-red-500 @enderror"
                                         autocomplete="address-level2"
                                         aria-invalid="@error('municipality') true @enderror">
                                     <option value="">City / Municipality (optional)</option>
@@ -756,10 +789,10 @@
                             </div>
 
                             <div class="min-w-0" :aria-busy="loadingBarangays ? 'true' : 'false'">
-                                <label for="barangay" class="block text-xs font-semibold tracking-wider uppercase text-gray-500">Barangay</label>
+                                <label for="barangay" class="block text-xs font-bold tracking-wider uppercase text-gray-600">Barangay</label>
                                 <select id="barangay" name="barangay" x-ref="barangay"
                                         :disabled="!municipalityPicked || loadingBarangays"
-                                        class="block mt-2 w-full @error('barangay') border-red-400 focus:border-red-500 focus:ring-red-500 @enderror"
+                                        class="block mt-2 h-[52px] w-full rounded-xl border-gray-300 bg-white px-4 text-[15px] text-gray-900 placeholder:text-gray-400 focus:border-teal focus:ring-4 focus:ring-teal/15 @error('barangay') border-red-400 focus:border-red-500 focus:ring-red-500 @enderror"
                                         autocomplete="address-level2"
                                         aria-invalid="@error('barangay') true @enderror">
                                     <option value="">Barangay (optional)</option>
@@ -780,25 +813,25 @@
                             </div>
                         @else
                             <div class="min-w-0">
-                                <label for="barangay" class="block text-xs font-semibold tracking-wider uppercase text-gray-500">Barangay</label>
+                                <label for="barangay" class="block text-xs font-bold tracking-wider uppercase text-gray-600">Barangay</label>
                                 <input id="barangay" x-ref="barangay" type="text" name="barangay" value="{{ old('barangay') }}"
-                                       class="block mt-2 w-full @error('barangay') border-red-400 focus:border-red-500 focus:ring-red-500 @enderror"
+                                       class="block mt-2 h-[52px] w-full rounded-xl border-gray-300 bg-white px-4 text-[15px] text-gray-900 placeholder:text-gray-400 focus:border-teal focus:ring-4 focus:ring-teal/15 @error('barangay') border-red-400 focus:border-red-500 focus:ring-red-500 @enderror"
                                        maxlength="255" autocomplete="address-level2" placeholder="e.g., Barangay Uno" />
                                 @error('barangay')<p class="mt-1.5 text-sm text-red-600">{{ $message }}</p>@enderror
                             </div>
 
                             <div class="min-w-0">
-                                <label for="municipality" class="block text-xs font-semibold tracking-wider uppercase text-gray-500">City / Municipality</label>
+                                <label for="municipality" class="block text-xs font-bold tracking-wider uppercase text-gray-600">City / Municipality</label>
                                 <input id="municipality" x-ref="municipality" type="text" name="municipality" value="{{ old('municipality') }}"
-                                       class="block mt-2 w-full @error('municipality') border-red-400 focus:border-red-500 focus:ring-red-500 @enderror"
+                                       class="block mt-2 h-[52px] w-full rounded-xl border-gray-300 bg-white px-4 text-[15px] text-gray-900 placeholder:text-gray-400 focus:border-teal focus:ring-4 focus:ring-teal/15 @error('municipality') border-red-400 focus:border-red-500 focus:ring-red-500 @enderror"
                                        maxlength="255" autocomplete="address-level2" placeholder="e.g., Quezon City" />
                                 @error('municipality')<p class="mt-1.5 text-sm text-red-600">{{ $message }}</p>@enderror
                             </div>
 
                             <div class="sm:col-span-2 min-w-0">
-                                <label for="province" class="block text-xs font-semibold tracking-wider uppercase text-gray-500">Province</label>
+                                <label for="province" class="block text-xs font-bold tracking-wider uppercase text-gray-600">Province</label>
                                 <input id="province" x-ref="province" type="text" name="province" value="{{ old('province') }}"
-                                       class="block mt-2 w-full @error('province') border-red-400 focus:border-red-500 focus:ring-red-500 @enderror"
+                                       class="block mt-2 h-[52px] w-full rounded-xl border-gray-300 bg-white px-4 text-[15px] text-gray-900 placeholder:text-gray-400 focus:border-teal focus:ring-4 focus:ring-teal/15 @error('province') border-red-400 focus:border-red-500 focus:ring-red-500 @enderror"
                                        maxlength="255" autocomplete="address-level1" placeholder="e.g., Metro Manila" />
                                 @error('province')<p class="mt-1.5 text-sm text-red-600">{{ $message }}</p>@enderror
                             </div>
@@ -808,7 +841,7 @@
 
                 {{-- ============ STEP 3 — SUPPORTING DOCUMENTS ============ --}}
                 <section x-cloak x-show="step === 2" aria-labelledby="wizard-step-3" class="mt-6">
-                    <h3 id="wizard-step-3" tabindex="-1" x-ref="stepHeading2" class="text-base sm:text-lg font-bold text-gray-900 focus:outline-none">
+                    <h3 id="wizard-step-3" tabindex="-1" x-ref="stepHeading2" class="text-[20px] sm:text-[23px] font-bold tracking-tight text-[#1F2933] focus:outline-none">
                         Supporting Documents
                     </h3>
                     <p class="mt-2 text-xs sm:text-sm text-gray-600">
@@ -820,7 +853,7 @@
                         @foreach ($documentLabels as $type => $label)
                             @php $required = in_array($type, ['valid_id', 'business_registration'], true); @endphp
                             <div class="min-w-0">
-                                <label for="documents_{{ $type }}" class="block text-xs font-semibold tracking-wider uppercase text-gray-500">
+                                <label for="documents_{{ $type }}" class="block text-xs font-bold tracking-wider uppercase text-gray-600">
                                     {{ $label }}
                                     @if ($required)<span class="text-red-500" aria-hidden="true">*</span>@endif
                                 </label>
@@ -855,14 +888,14 @@
 
                 {{-- ============ STEP 4 — REVIEW & SUBMIT ============ --}}
                 <section x-cloak x-show="step === 3" aria-labelledby="wizard-step-4" class="mt-6">
-                    <h3 id="wizard-step-4" tabindex="-1" x-ref="stepHeading3" class="text-base sm:text-lg font-bold text-gray-900 focus:outline-none">
+                    <h3 id="wizard-step-4" tabindex="-1" x-ref="stepHeading3" class="text-[20px] sm:text-[23px] font-bold tracking-tight text-[#1F2933] focus:outline-none">
                         Review your application.
                     </h3>
                     <p class="mt-1 text-xs sm:text-sm text-gray-500">Check your details. You can go back and edit any step below.</p>
 
-                    <div class="mt-6 divide-y divide-gray-100 rounded-xl border border-gray-100">
+                    <div class="mt-6 divide-y divide-gray-100 rounded-2xl border border-gray-200/70 shadow-sm">
                         {{-- Center & Owner --}}
-                        <div class="p-4 sm:p-5">
+                        <div class="p-5">
                             <div class="flex items-center justify-between gap-3">
                                 <h4 class="text-xs font-bold tracking-wider uppercase text-gray-500">Center &amp; Owner</h4>
                                 <button type="button" x-on:click="goTo(0)"
@@ -879,7 +912,7 @@
                         </div>
 
                         {{-- Location --}}
-                        <div class="p-4 sm:p-5">
+                        <div class="p-5">
                             <div class="flex items-center justify-between gap-3">
                                 <h4 class="text-xs font-bold tracking-wider uppercase text-gray-500">Location</h4>
                                 <button type="button" x-on:click="goTo(1)"
@@ -893,7 +926,7 @@
                         </div>
 
                         {{-- Documents --}}
-                        <div class="p-4 sm:p-5">
+                        <div class="p-5">
                             <div class="flex items-center justify-between gap-3">
                                 <h4 class="text-xs font-bold tracking-wider uppercase text-gray-500">Documents</h4>
                                 <button type="button" x-on:click="goTo(2)"
@@ -933,14 +966,14 @@
                 </section>
 
                 {{-- ============ NAVIGATION CONTROLS ============ --}}
-                <div class="mt-8 flex flex-col-reverse gap-3 border-t border-gray-100 pt-6 sm:flex-row sm:items-center sm:justify-between">
+                <div class="mt-8 flex flex-col-reverse gap-3 border-t border-gray-200 pt-6 sm:flex-row sm:items-center sm:justify-between">
                     <button type="button"
                             id="wizard-back"
                             x-show="step > 0"
                             x-cloak
                             :disabled="submitting"
                             x-on:click="back"
-                            class="inline-flex min-h-[48px] items-center justify-center gap-2 rounded-xl border border-gray-200 bg-white px-6 py-3 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-teal focus-visible:ring-offset-2 disabled:opacity-60 disabled:cursor-not-allowed">
+                            class="inline-flex min-h-[52px] items-center justify-center gap-2 rounded-xl border border-gray-300 bg-white px-7 py-3 text-sm font-bold text-gray-700 shadow-sm transition hover:bg-gray-50 hover:border-gray-400 active:bg-gray-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-teal focus-visible:ring-offset-2 disabled:opacity-60 disabled:cursor-not-allowed disabled:shadow-none">
                         <svg class="h-4 w-4 flex-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
                         Back
                     </button>
@@ -951,7 +984,7 @@
                             x-cloak
                             :disabled="submitting"
                             x-on:click="next"
-                            class="inline-flex min-h-[48px] items-center justify-center gap-2 rounded-xl bg-teal px-8 py-3 text-sm font-semibold text-white transition-colors hover:bg-teal-dark focus:outline-none focus-visible:ring-2 focus-visible:ring-teal focus-visible:ring-offset-2 disabled:opacity-60 disabled:cursor-not-allowed">
+                            class="inline-flex min-h-[52px] items-center justify-center gap-2 rounded-xl bg-teal px-9 py-3 text-sm font-bold tracking-wide text-white shadow-[0_10px_25px_-10px_rgba(22,105,122,0.55)] transition hover:bg-teal-dark active:bg-teal-dark active:scale-[0.99] focus:outline-none focus-visible:ring-2 focus-visible:ring-teal focus-visible:ring-offset-2 disabled:opacity-60 disabled:cursor-not-allowed disabled:shadow-none">
                         <template x-if="step === 2"><span>Review &amp; Submit</span></template>
                         <template x-if="step !== 2"><span>Next</span></template>
                     </button>
@@ -961,7 +994,7 @@
                             x-show="step === 3"
                             x-cloak
                             :disabled="submitting || !emailVerifiedNow()"
-                            class="inline-flex min-h-[48px] items-center justify-center gap-2 rounded-xl bg-teal px-8 py-3 text-sm font-semibold text-white transition-colors hover:bg-teal-dark focus:outline-none focus-visible:ring-2 focus-visible:ring-teal focus-visible:ring-offset-2 disabled:opacity-70 disabled:cursor-not-allowed">
+                            class="inline-flex min-h-[52px] items-center justify-center gap-2 rounded-xl bg-teal px-9 py-3 text-sm font-bold tracking-wide text-white shadow-[0_10px_25px_-10px_rgba(22,105,122,0.55)] transition hover:bg-teal-dark active:bg-teal-dark active:scale-[0.99] focus:outline-none focus-visible:ring-2 focus-visible:ring-teal focus-visible:ring-offset-2 disabled:opacity-70 disabled:cursor-not-allowed disabled:shadow-none">
                         <svg x-show="submitting" x-cloak class="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                             <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                             <path class="opacity-90" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>

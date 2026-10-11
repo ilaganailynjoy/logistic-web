@@ -45,7 +45,7 @@ class AuthenticationTest extends TestCase
         $this->get('/login')
             ->assertOk()
             ->assertSee('Active Riders')
-            ->assertSee('<p class="mt-3 text-xl sm:text-2xl font-bold">' . $expected . '</p>', false);
+            ->assertSee('<p class="mt-2.5 text-xl font-bold">' . $expected . '</p>', false);
     }
 
     public function test_users_can_authenticate_using_the_login_screen(): void

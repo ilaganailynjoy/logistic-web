@@ -38,54 +38,57 @@
 <div class="min-h-screen flex flex-col-reverse lg:flex-row">
 
     {{-- ================= LEFT PANEL — LOGISTICS BRANDING ================= --}}
-    <div class="lg:w-1/2 bg-gradient-to-br from-[#16697A] via-[#0E4A57] to-[#0B3B46] text-white flex flex-col p-8 sm:p-12 xl:p-16">
-        <div class="flex-1 flex flex-col justify-center max-w-xl mx-auto lg:mx-0 w-full">
+    {{-- Compact 40/60 split: narrower brand column so the content block fills
+         its column deliberately instead of floating in a 50% void. Consistent
+         with the apply + status pages (same widths, padding, type scale). --}}
+    <div class="lg:w-[40%] xl:w-[38%] bg-gradient-to-br from-[#16697A] via-[#0E4A57] to-[#0B3B46] text-white flex flex-col p-6 sm:p-10 lg:p-10 xl:p-12">
+        <div class="w-full max-w-md mx-auto lg:mx-0 my-auto py-8 lg:py-10 flex flex-col justify-center">
             {{-- Brand --}}
-            <div class="flex items-center gap-4">
-                <img src="{{ asset('images/logo.png') }}" alt="Logo" class="h-14 w-14 sm:h-16 sm:w-16 rounded-2xl object-cover ring-1 ring-white/25 shadow-lg">
+            <div class="flex items-center gap-3">
+                <img src="{{ asset('images/logo.png') }}" alt="Logo" class="h-12 w-12 rounded-xl object-cover ring-1 ring-white/25 shadow-lg">
                 <div>
-                    <p class="text-2xl sm:text-3xl font-extrabold tracking-tight">Logistics</p>
-                    <p class="text-[11px] sm:text-xs font-semibold tracking-[0.3em] uppercase text-white/70 mt-0.5">Logistics Center</p>
+                    <p class="text-xl font-extrabold tracking-tight">Logistics</p>
+                    <p class="text-[11px] font-semibold tracking-[0.25em] uppercase text-white/70 mt-0.5">Logistics Center</p>
                 </div>
             </div>
 
             {{-- Headline --}}
-            <h1 class="mt-12 sm:mt-16 text-3xl sm:text-4xl xl:text-5xl font-extrabold leading-tight tracking-tight">
-                Keep every delivery<br class="hidden sm:block"> moving.
+            <h1 class="mt-8 text-2xl sm:text-3xl xl:text-4xl font-extrabold leading-tight tracking-tight">
+                Keep every delivery moving.
             </h1>
 
             {{-- Supporting text --}}
-            <p class="mt-5 text-sm sm:text-base text-white/75 leading-relaxed max-w-md">
+            <p class="mt-4 text-sm sm:text-[15px] text-white/75 leading-relaxed">
                 Manage rider applications, assign deliveries, track packages, and monitor your delivery operations — all from one connected Logistics Center.
             </p>
 
             {{-- Statistics --}}
-            <div class="mt-10 grid grid-cols-3 gap-3 sm:gap-4 max-w-lg">
-                <div class="bg-white/10 backdrop-blur rounded-2xl px-4 py-5 sm:px-5 ring-1 ring-white/10">
-                    <span class="block w-7 h-[3px] rounded-full bg-secondary"></span>
-                    <p class="mt-3 text-xl sm:text-2xl font-bold">{{ $stats['activeRiders'] }}</p>
-                    <p class="mt-1 text-xs sm:text-sm text-white/70">Active Riders</p>
+            <div class="mt-8 grid grid-cols-3 gap-3">
+                <div class="bg-white/10 backdrop-blur rounded-xl px-4 py-4 ring-1 ring-white/10">
+                    <span class="block w-6 h-[3px] rounded-full bg-secondary"></span>
+                    <p class="mt-2.5 text-xl font-bold">{{ $stats['activeRiders'] }}</p>
+                    <p class="mt-0.5 text-xs text-white/70">Active Riders</p>
                 </div>
-                <div class="bg-white/10 backdrop-blur rounded-2xl px-4 py-5 sm:px-5 ring-1 ring-white/10">
-                    <span class="block w-7 h-[3px] rounded-full bg-secondary"></span>
-                    <p class="mt-3 text-xl sm:text-2xl font-bold">{{ $stats['deliveries'] }}</p>
-                    <p class="mt-1 text-xs sm:text-sm text-white/70">Deliveries</p>
+                <div class="bg-white/10 backdrop-blur rounded-xl px-4 py-4 ring-1 ring-white/10">
+                    <span class="block w-6 h-[3px] rounded-full bg-secondary"></span>
+                    <p class="mt-2.5 text-xl font-bold">{{ $stats['deliveries'] }}</p>
+                    <p class="mt-0.5 text-xs text-white/70">Deliveries</p>
                 </div>
-                <div class="bg-white/10 backdrop-blur rounded-2xl px-4 py-5 sm:px-5 ring-1 ring-white/10">
-                    <span class="block w-7 h-[3px] rounded-full bg-secondary"></span>
-                    <p class="mt-3 text-xl sm:text-2xl font-bold">{{ $stats['completed'] }}</p>
-                    <p class="mt-1 text-xs sm:text-sm text-white/70">Completed</p>
+                <div class="bg-white/10 backdrop-blur rounded-xl px-4 py-4 ring-1 ring-white/10">
+                    <span class="block w-6 h-[3px] rounded-full bg-secondary"></span>
+                    <p class="mt-2.5 text-xl font-bold">{{ $stats['completed'] }}</p>
+                    <p class="mt-0.5 text-xs text-white/70">Completed</p>
                 </div>
             </div>
         </div>
 
         {{-- Footer --}}
-        <p class="pt-10 text-xs sm:text-sm text-white/50 max-w-xl mx-auto lg:mx-0 w-full">INVOIZ Logistics &middot; v1.0</p>
+        <p class="mt-8 pt-6 border-t border-white/10 text-xs text-white/50 w-full max-w-md mx-auto lg:mx-0">INVOIZ Logistics &middot; v1.0</p>
     </div>
 
     {{-- ================= RIGHT PANEL — LOGIN ================= --}}
-    <div class="lg:w-1/2 flex items-center justify-center bg-[#F8FAF9] p-6 sm:p-8 xl:p-10">
-        <div class="w-full max-w-md">
+    <div class="flex-1 lg:w-[60%] xl:w-[62%] flex justify-center bg-[#F8FAF9] px-6 py-10 sm:p-10">
+        <div class="w-full max-w-md m-auto">
             <div x-data="{
                 submitting: false,
                 showPassword: false,
